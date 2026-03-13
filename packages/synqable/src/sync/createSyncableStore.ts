@@ -326,7 +326,6 @@ export function createSyncableStore<S extends Schema>(
 
 		try {
 			mutableSyncStatus.isSyncing = true;
-			mutableSyncStatus.syncError = null;
 			if (retryCount === 0) {
 				emitSyncEvent({ type: 'started' });
 			}
@@ -416,6 +415,7 @@ export function createSyncableStore<S extends Schema>(
 		try {
 			await storage.save(storageKey, data);
 			mutableStorageStatus.lastSavedAt = clock();
+			mutableStorageStatus.storageError = null;
 		} catch (error) {
 			mutableStorageStatus.storageError = error as Error;
 			emitStorageEvent({ type: 'failed', error: error as Error });
@@ -433,7 +433,6 @@ export function createSyncableStore<S extends Schema>(
 		if (storageSavePending) {
 			const pending = storageSavePending;
 			storageSavePending = null;
-			mutableStorageStatus.storageError = null;
 			emitStorageEvent({ type: 'saving' });
 			await processStorageSave(pending.account, pending.data);
 		} else {
@@ -445,13 +444,11 @@ export function createSyncableStore<S extends Schema>(
 	function saveToStorage(acc: `0x${string}`, data: InternalStorage<S>): Promise<void> {
 		if (mutableStorageStatus.isSaving) {
 			storageSavePending = { account: acc, data };
-			mutableStorageStatus.storageError = null;
 			return currentSavePromise!;
 		}
 
 		mutableStorageStatus.isSaving = true;
 		storageSavePending = null;
-		mutableStorageStatus.storageError = null;
 		emitStorageEvent({ type: 'saving' });
 
 		currentSavePromise = processStorageSave(acc, data);
