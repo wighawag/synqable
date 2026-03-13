@@ -381,8 +381,12 @@ export function createSyncableStore<S extends Schema>(
 				mutableSyncStatus.isSyncing = false;
 				emitSyncEvent({ type: 'completed', timestamp: clock() });
 			} else {
+				syncDirty = false;
+				mutableSyncStatus.lastSyncedAt = clock();
+				mutableSyncStatus.hasPendingSync = false;
 				mutableSyncStatus.syncError = null;
 				mutableSyncStatus.isSyncing = false;
+				emitSyncEvent({ type: 'completed', timestamp: clock() });
 			}
 		} catch (error) {
 			if (retryCount < maxRetries) {
