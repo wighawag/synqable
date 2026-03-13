@@ -140,12 +140,6 @@ export interface SyncableStore<S extends Schema> {
 	/** Force sync to server now */
 	syncNow(): Promise<void>;
 
-	/** Pause server sync */
-	pauseSync(): void;
-
-	/** Resume server sync */
-	resumeSync(): void;
-
 	/** Retry loading after a migration failure */
 	retryLoad(): void;
 
@@ -193,11 +187,10 @@ export function createSyncableStore<S extends Schema>(
 	interface MutableSyncStatus {
 		isSyncing: boolean;
 		isOnline: boolean;
-		isPaused: boolean;
 		hasPendingSync: boolean;
 		lastSyncedAt: number | null;
 		syncError: Error | null;
-		readonly displayState: 'syncing' | 'offline' | 'paused' | 'error' | 'idle';
+		readonly displayState: 'syncing' | 'offline' | 'error' | 'idle';
 	}
 
 	// Internal mutable storage status
@@ -211,14 +204,12 @@ export function createSyncableStore<S extends Schema>(
 	const mutableSyncStatus: MutableSyncStatus = {
 		isSyncing: false,
 		isOnline: true,
-		isPaused: false,
 		hasPendingSync: false,
 		lastSyncedAt: null,
 		syncError: null,
 		get displayState() {
 			if (this.isSyncing) return 'syncing';
 			if (!this.isOnline) return 'offline';
-			if (this.isPaused) return 'paused';
 			if (this.syncError) return 'error';
 			return 'idle';
 		},
@@ -248,9 +239,7 @@ export function createSyncableStore<S extends Schema>(
 		| { type: 'completed'; timestamp: number }
 		| { type: 'failed'; error: Error }
 		| { type: 'offline' }
-		| { type: 'online' }
-		| { type: 'paused' }
-		| { type: 'resumed' };
+		| { type: 'online' };
 
 	type StorageEventData =
 		| { type: 'saving' }
@@ -289,7 +278,6 @@ export function createSyncableStore<S extends Schema>(
 	let syncIntervalTimer: ReturnType<typeof setInterval> | undefined;
 	let syncDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 	let syncDirty = false;
-	let syncPaused = false;
 
 	// Store caches
 	const itemStoreCache = new Map<string, Readable<unknown>>();
@@ -320,7 +308,7 @@ export function createSyncableStore<S extends Schema>(
 	}
 
 	function scheduleSync(): void {
-		if (!syncAdapter || asyncState.status !== 'ready' || syncPaused) return;
+		if (!syncAdapter || asyncState.status !== 'ready') return;
 
 		if (syncDebounceTimer) {
 			clearTimeout(syncDebounceTimer);
@@ -529,7 +517,7 @@ export function createSyncableStore<S extends Schema>(
 		const intervalMs = syncConfig?.intervalMs;
 		if (syncAdapter && intervalMs && intervalMs > 0) {
 			syncIntervalTimer = setInterval(() => {
-				if (asyncState.status === 'ready' && !syncPaused) {
+				if (asyncState.status === 'ready') {
 					performSync();
 				}
 			}, intervalMs);
@@ -944,25 +932,6 @@ export function createSyncableStore<S extends Schema>(
 			}
 
 			await performSync();
-		},
-
-		pauseSync(): void {
-			syncPaused = true;
-			mutableSyncStatus.isPaused = true;
-			if (syncDebounceTimer) {
-				clearTimeout(syncDebounceTimer);
-				syncDebounceTimer = undefined;
-			}
-			emitSyncEvent({ type: 'paused' });
-		},
-
-		resumeSync(): void {
-			syncPaused = false;
-			mutableSyncStatus.isPaused = false;
-			emitSyncEvent({ type: 'resumed' });
-			if (syncDirty) {
-				scheduleSync();
-			}
 		},
 
 		retryLoad(): void {

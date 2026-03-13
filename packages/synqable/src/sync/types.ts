@@ -163,9 +163,6 @@ export interface SyncStatus {
 	/** True when network is available */
 	readonly isOnline: boolean;
 
-	/** True when sync is intentionally paused */
-	readonly isPaused: boolean;
-
 	/** True if there are changes pending sync to server */
 	readonly hasPendingSync: boolean;
 
@@ -175,8 +172,8 @@ export interface SyncStatus {
 	/** Last sync error, null if healthy */
 	readonly syncError: Error | null;
 
-	/** Display state for simple UI: syncing > offline > paused > error > idle */
-	readonly displayState: 'syncing' | 'offline' | 'paused' | 'error' | 'idle';
+	/** Display state for simple UI: syncing > offline > error > idle */
+	readonly displayState: 'syncing' | 'offline' | 'error' | 'idle';
 }
 
 /**
@@ -188,9 +185,7 @@ export type SyncEvent =
 	| { type: 'completed'; timestamp: number }
 	| { type: 'failed'; error: Error }
 	| { type: 'offline' }
-	| { type: 'online' }
-	| { type: 'paused' }
-	| { type: 'resumed' };
+	| { type: 'online' };
 
 // ============================================================================
 // Storage Status and Events
