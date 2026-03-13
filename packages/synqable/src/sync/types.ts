@@ -358,6 +358,9 @@ export interface PushResponseSuccess {
 	currentCounter?: bigint;
 }
 
+
+// TODO should counter be optional for PushResponse ?
+
 /**
  * Failed push response.
  */
