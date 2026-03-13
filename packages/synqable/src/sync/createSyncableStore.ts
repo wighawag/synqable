@@ -420,16 +420,11 @@ export function createSyncableStore<S extends Schema>(
 		} catch (error) {
 			mutableStorageStatus.storageError = error as Error;
 			emitStorageEvent({ type: 'failed', error: error as Error });
-			throw error;
 		}
 	}
 
 	async function processStorageSave(acc: `0x${string}`, data: InternalStorage<S>): Promise<void> {
-		try {
-			await doStorageSave(acc, data);
-		} catch {
-			// Error handled in doStorageSave
-		}
+		await doStorageSave(acc, data);
 
 		if (storageSavePending) {
 			const pending = storageSavePending;
