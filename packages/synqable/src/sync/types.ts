@@ -97,6 +97,19 @@ export type DataOf<S extends Schema> = {
  */
 export type DeepPartial<T> = T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 
+/**
+ * Deep readonly type to prevent direct mutation of nested data.
+ */
+export type DeepReadonly<T> = T extends (infer U)[]
+	? ReadonlyArray<DeepReadonly<U>>
+	: T extends Map<infer K, infer V>
+		? ReadonlyMap<DeepReadonly<K>, DeepReadonly<V>>
+		: T extends Set<infer U>
+			? ReadonlySet<DeepReadonly<U>>
+			: T extends object
+				? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+				: T;
+
 // ============================================================================
 // Internal Storage Shape
 // ============================================================================

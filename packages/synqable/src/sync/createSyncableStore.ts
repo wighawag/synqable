@@ -16,6 +16,7 @@ import type {
 	ExtractPermanent,
 	ExtractMapItem,
 	DeepPartial,
+	DeepReadonly,
 	StoreChange,
 	StoreEvents,
 	SyncAdapter,
@@ -77,8 +78,8 @@ export interface SyncableStoreConfig<S extends Schema> {
 // ============================================================================
 
 export interface SyncableStore<S extends Schema> {
-	/** Current async state */
-	readonly state: AsyncState<DataOf<S>>;
+	/** Current async state (deeply readonly to prevent direct mutation) */
+	readonly state: DeepReadonly<AsyncState<DataOf<S>>>;
 
 	/** The account this store is bound to */
 	readonly account: `0x${string}`;
@@ -607,7 +608,7 @@ export function createSyncableStore<S extends Schema>(
 
 	const store: SyncableStore<S> = {
 		get state() {
-			return asyncState;
+			return asyncState as DeepReadonly<AsyncState<DataOf<S>>>;
 		},
 
 		get account() {

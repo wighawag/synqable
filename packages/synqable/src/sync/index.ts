@@ -17,6 +17,7 @@ export {
 	type ExtractPermanent,
 	type ExtractMapItem,
 	type DeepPartial,
+	type DeepReadonly,
 	type InternalStorage,
 	type AsyncState,
 	type StateEvent,
