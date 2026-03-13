@@ -122,20 +122,20 @@ export interface SyncableStore<S extends Schema> {
 	/** Stop watching and clean up */
 	stop(): void;
 
-	/** Get a reactive store for a specific map item */
-	getItemStore<K extends MapKeys<S>>(
+	/** Watch a specific map item reactively */
+	watchItem<K extends MapKeys<S>>(
 		field: K,
 		key: string,
 	): Readable<(ExtractMapItem<S[K]> & { deleteAt: number }) | undefined>;
 
-	/** Get a reactive store for a top-level field */
-	getFieldStore<K extends keyof S>(field: K): Readable<DataOf<S>[K] | undefined>;
+	/** Watch a top-level field reactively */
+	watchField<K extends keyof S>(field: K): Readable<DataOf<S>[K] | undefined>;
 
-	/** Subscribe to sync status changes */
-	readonly syncStatusStore: Readable<SyncStatus>;
+	/** Reactive sync status */
+	readonly syncStatus$: Readable<SyncStatus>;
 
-	/** Subscribe to storage status changes */
-	readonly storageStatusStore: Readable<StorageStatus>;
+	/** Reactive storage status */
+	readonly storageStatus$: Readable<StorageStatus>;
 
 	/** Force sync to server now */
 	syncNow(): Promise<void>;
@@ -296,14 +296,14 @@ export function createSyncableStore<S extends Schema>(
 	const fieldStoreCache = new Map<string, Readable<unknown>>();
 
 	// Status stores
-	const syncStatusStore: Readable<SyncStatus> = {
+	const syncStatus$: Readable<SyncStatus> = {
 		subscribe(callback: (status: SyncStatus) => void): () => void {
 			callback(syncStatus);
 			return emitter.on('$store:sync', () => callback(syncStatus));
 		},
 	};
 
-	const storageStatusStore: Readable<StorageStatus> = {
+	const storageStatus$: Readable<StorageStatus> = {
 		subscribe(callback: (status: StorageStatus) => void): () => void {
 			callback(storageStatus);
 			return emitter.on('$store:storage', () => callback(storageStatus));
@@ -785,8 +785,8 @@ export function createSyncableStore<S extends Schema>(
 		on: emitter.on.bind(emitter),
 		off: emitter.off.bind(emitter),
 
-		syncStatusStore,
-		storageStatusStore,
+		syncStatus$,
+		storageStatus$,
 
 		load,
 
@@ -824,7 +824,7 @@ export function createSyncableStore<S extends Schema>(
 			}
 		},
 
-		getItemStore<K extends MapKeys<S>>(
+		watchItem<K extends MapKeys<S>>(
 			field: K,
 			key: string,
 		): Readable<(ExtractMapItem<S[K]> & { deleteAt: number }) | undefined> {
@@ -881,7 +881,7 @@ export function createSyncableStore<S extends Schema>(
 			return itemStore;
 		},
 
-		getFieldStore<K extends keyof S>(field: K): Readable<DataOf<S>[K] | undefined> {
+		watchField<K extends keyof S>(field: K): Readable<DataOf<S>[K] | undefined> {
 			type FieldType = DataOf<S>[K] | undefined;
 
 			const cacheKey = String(field);

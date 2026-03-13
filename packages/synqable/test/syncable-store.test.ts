@@ -479,7 +479,7 @@ describe('createSyncableStore', () => {
 		});
 	});
 
-	describe('getItemStore', () => {
+	describe('watchItem', () => {
 		it('returns undefined when store is not ready', () => {
 			const store = createSyncableStore({
 				schema,
@@ -492,7 +492,7 @@ describe('createSyncableStore', () => {
 
 			// Store is idle - not loaded
 			let itemValue: unknown;
-			const itemStore = store.getItemStore('operations', 'op-1');
+			const itemStore = store.watchItem('operations', 'op-1');
 			itemStore.subscribe((v) => (itemValue = v));
 
 			expect(itemValue).toBeUndefined();
@@ -515,7 +515,7 @@ describe('createSyncableStore', () => {
 
 			// Get item store and subscribe
 			let itemValue: { tx: string; status: string; deleteAt: number } | undefined;
-			const itemStore = store.getItemStore('operations', 'op-1');
+			const itemStore = store.watchItem('operations', 'op-1');
 			itemStore.subscribe((v) => (itemValue = v));
 
 			expect(itemValue).toBeDefined();
@@ -538,7 +538,7 @@ describe('createSyncableStore', () => {
 
 			// Subscribe to item store BEFORE adding item
 			let itemValue: { tx: string; status: string; deleteAt: number } | undefined;
-			const itemStore = store.getItemStore('operations', 'op-1');
+			const itemStore = store.watchItem('operations', 'op-1');
 			itemStore.subscribe((v) => (itemValue = v));
 
 			// Initially undefined
@@ -569,7 +569,7 @@ describe('createSyncableStore', () => {
 
 			// Subscribe to item store
 			let itemValue: { tx: string; status: string; deleteAt: number } | undefined;
-			const itemStore = store.getItemStore('operations', 'op-1');
+			const itemStore = store.watchItem('operations', 'op-1');
 			itemStore.subscribe((v) => (itemValue = v));
 
 			expect(itemValue?.status).toBe('pending');
@@ -599,7 +599,7 @@ describe('createSyncableStore', () => {
 
 			// Subscribe to item store
 			let itemValue: { tx: string; status: string; deleteAt: number } | undefined;
-			const itemStore = store.getItemStore('operations', 'op-1');
+			const itemStore = store.watchItem('operations', 'op-1');
 			itemStore.subscribe((v) => (itemValue = v));
 
 			expect(itemValue).toBeDefined();
@@ -624,20 +624,20 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Get item store twice for same key
-			const itemStore1 = store.getItemStore('operations', 'op-1');
-			const itemStore2 = store.getItemStore('operations', 'op-1');
+			const itemStore1 = store.watchItem('operations', 'op-1');
+			const itemStore2 = store.watchItem('operations', 'op-1');
 
 			// Should be the same instance
 			expect(itemStore1).toBe(itemStore2);
 
 			// Different key should return different instance
-			const itemStore3 = store.getItemStore('operations', 'op-2');
+			const itemStore3 = store.watchItem('operations', 'op-2');
 			expect(itemStore1).not.toBe(itemStore3);
 		});
 	});
 
-	describe('syncStatusStore and storageStatusStore', () => {
-		it('syncStatusStore provides current sync status on subscribe', () => {
+	describe('syncStatus$ and storageStatus$', () => {
+		it('syncStatus$ provides current sync status on subscribe', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
@@ -648,7 +648,7 @@ describe('createSyncableStore', () => {
 			});
 
 			let receivedStatus: SyncStatus | undefined;
-			store.syncStatusStore.subscribe((status) => {
+			store.syncStatus$.subscribe((status) => {
 				receivedStatus = status;
 			});
 
@@ -657,7 +657,7 @@ describe('createSyncableStore', () => {
 			expect(receivedStatus?.hasPendingSync).toBe(false);
 		});
 
-		it('storageStatusStore provides current storage status on subscribe', () => {
+		it('storageStatus$ provides current storage status on subscribe', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
@@ -668,7 +668,7 @@ describe('createSyncableStore', () => {
 			});
 
 			let receivedStatus: StorageStatus | undefined;
-			store.storageStatusStore.subscribe((status) => {
+			store.storageStatus$.subscribe((status) => {
 				receivedStatus = status;
 			});
 
@@ -677,7 +677,7 @@ describe('createSyncableStore', () => {
 			expect(receivedStatus?.isSaving).toBe(false);
 		});
 
-		it('syncStatusStore notifies when syncState changes', async () => {
+		it('syncStatus$ notifies when syncState changes', async () => {
 			let pushResolve: (() => void) | undefined;
 			const pushPromise = new Promise<void>((resolve) => {
 				pushResolve = resolve;
@@ -708,7 +708,7 @@ describe('createSyncableStore', () => {
 
 			// Track status changes
 			const statusHistory: string[] = [];
-			store.syncStatusStore.subscribe((status) => {
+			store.syncStatus$.subscribe((status) => {
 				statusHistory.push(status.displayState);
 			});
 
@@ -729,7 +729,7 @@ describe('createSyncableStore', () => {
 			expect(statusHistory[statusHistory.length - 1]).toBe('idle');
 		});
 
-		it('storageStatusStore notifies when storageState changes', async () => {
+		it('storageStatus$ notifies when storageState changes', async () => {
 			// Create a slow storage that we can control
 			let saveResolve: (() => void) | undefined;
 			const savePromise = new Promise<void>((resolve) => {
@@ -769,7 +769,7 @@ describe('createSyncableStore', () => {
 
 			// Track status changes
 			const statusHistory: string[] = [];
-			store.storageStatusStore.subscribe((status) => {
+			store.storageStatus$.subscribe((status) => {
 				statusHistory.push(status.displayState);
 			});
 
@@ -806,7 +806,7 @@ describe('createSyncableStore', () => {
 
 			// No pending saves - should resolve immediately
 			let storageStatusValue: StorageStatus | undefined;
-			store.storageStatusStore.subscribe((s) => (storageStatusValue = s));
+			store.storageStatus$.subscribe((s) => (storageStatusValue = s));
 			expect(storageStatusValue?.isSaving).toBe(false);
 			await expect(store.flush()).resolves.toBeUndefined();
 		});
@@ -856,7 +856,7 @@ describe('createSyncableStore', () => {
 
 			// Should be saving
 			let storageStatusValue: StorageStatus | undefined;
-			store.storageStatusStore.subscribe((s) => (storageStatusValue = s));
+			store.storageStatus$.subscribe((s) => (storageStatusValue = s));
 			expect(storageStatusValue?.isSaving).toBe(true);
 
 			// Start flush - it should wait
@@ -1332,7 +1332,7 @@ describe('createSyncableStore', () => {
 
 				// Track sync status
 				let syncStatusValue: SyncStatus | undefined;
-				store.syncStatusStore.subscribe((s) => (syncStatusValue = s));
+				store.syncStatus$.subscribe((s) => (syncStatusValue = s));
 
 				// Initial state should be online and idle
 				expect(syncStatusValue?.isOnline).toBe(true);
@@ -1540,7 +1540,7 @@ describe('createSyncableStore', () => {
 
 			// No changes made - should be false
 			let syncStatusValue: SyncStatus | undefined;
-			store.syncStatusStore.subscribe((s) => (syncStatusValue = s));
+			store.syncStatus$.subscribe((s) => (syncStatusValue = s));
 			expect(syncStatusValue?.hasPendingSync).toBe(false);
 		});
 
@@ -1576,7 +1576,7 @@ describe('createSyncableStore', () => {
 
 			// Track sync status
 			let syncStatusValue: SyncStatus | undefined;
-			store.syncStatusStore.subscribe((s) => (syncStatusValue = s));
+			store.syncStatus$.subscribe((s) => (syncStatusValue = s));
 
 			// Initially false
 			expect(syncStatusValue?.hasPendingSync).toBe(false);
@@ -1619,7 +1619,7 @@ describe('createSyncableStore', () => {
 
 			// Track sync status
 			let syncStatusValue: SyncStatus | undefined;
-			store.syncStatusStore.subscribe((s) => (syncStatusValue = s));
+			store.syncStatus$.subscribe((s) => (syncStatusValue = s));
 
 			// Make a change
 			store.set('settings', { theme: 'light', volume: 0.8 });
@@ -1636,7 +1636,7 @@ describe('createSyncableStore', () => {
 			expect(syncStatusValue?.hasPendingSync).toBe(false);
 		});
 
-		it('notifies syncStatusStore subscribers when hasPendingSync changes', async () => {
+		it('notifies syncStatus$ subscribers when hasPendingSync changes', async () => {
 			let pushResolve: (() => void) | undefined;
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
@@ -1665,9 +1665,9 @@ describe('createSyncableStore', () => {
 			pushResolve?.(); // Complete initial sync
 			await new Promise((r) => setTimeout(r, 20));
 
-			// Track hasPendingSync changes via syncStatusStore
+			// Track hasPendingSync changes via syncStatus$
 			const pendingHistory: boolean[] = [];
-			store.syncStatusStore.subscribe((status) => {
+			store.syncStatus$.subscribe((status) => {
 				pendingHistory.push(status.hasPendingSync);
 			});
 
@@ -1848,7 +1848,7 @@ describe('createSyncableStore', () => {
 
 			// Error should be captured in storageStatus
 			let storageStatusValue: StorageStatus | undefined;
-			store.storageStatusStore.subscribe((s) => (storageStatusValue = s));
+			store.storageStatus$.subscribe((s) => (storageStatusValue = s));
 			expect(storageStatusValue?.storageError).toBeDefined();
 			expect(storageStatusValue?.storageError?.message).toBe('Missing migration for version 2');
 		});
@@ -1939,7 +1939,7 @@ describe('createSyncableStore', () => {
 		});
 	});
 
-	describe('getFieldStore', () => {
+	describe('watchField', () => {
 		it('returns undefined when store is not ready (permanent field)', () => {
 			const store = createSyncableStore({
 				schema,
@@ -1952,7 +1952,7 @@ describe('createSyncableStore', () => {
 
 			// Store is idle - not loaded
 			let fieldValue: unknown;
-			const fieldStore = store.getFieldStore('settings');
+			const fieldStore = store.watchField('settings');
 			fieldStore.subscribe((v) => (fieldValue = v));
 
 			expect(fieldValue).toBeUndefined();
@@ -1971,7 +1971,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			let fieldValue: { theme: string; volume: number } | undefined;
-			const fieldStore = store.getFieldStore('settings');
+			const fieldStore = store.watchField('settings');
 			fieldStore.subscribe((v) => (fieldValue = v));
 
 			expect(fieldValue).toBeDefined();
@@ -1992,7 +1992,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			let fieldValue: { theme: string; volume: number } | undefined;
-			const fieldStore = store.getFieldStore('settings');
+			const fieldStore = store.watchField('settings');
 			fieldStore.subscribe((v) => (fieldValue = v));
 
 			// Change the field
@@ -2015,7 +2015,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			let fieldValue: { theme: string; volume: number } | undefined;
-			const fieldStore = store.getFieldStore('settings');
+			const fieldStore = store.watchField('settings');
 			fieldStore.subscribe((v) => (fieldValue = v));
 
 			// Patch the field
@@ -2041,7 +2041,7 @@ describe('createSyncableStore', () => {
 			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
 
 			let fieldValue: Record<string, { tx: string; status: string; deleteAt: number }> | undefined;
-			const fieldStore = store.getFieldStore('operations');
+			const fieldStore = store.watchField('operations');
 			fieldStore.subscribe((v) => (fieldValue = v as typeof fieldValue));
 
 			expect(fieldValue).toBeDefined();
@@ -2062,7 +2062,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			let fieldValue: Record<string, { tx: string; status: string; deleteAt: number }> | undefined;
-			const fieldStore = store.getFieldStore('operations');
+			const fieldStore = store.watchField('operations');
 			fieldStore.subscribe((v) => (fieldValue = v as typeof fieldValue));
 
 			// Initially empty
@@ -2092,7 +2092,7 @@ describe('createSyncableStore', () => {
 			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
 
 			let fieldValue: Record<string, { tx: string; status: string; deleteAt: number }> | undefined;
-			const fieldStore = store.getFieldStore('operations');
+			const fieldStore = store.watchField('operations');
 			fieldStore.subscribe((v) => (fieldValue = v as typeof fieldValue));
 
 			// Has item
@@ -2121,7 +2121,7 @@ describe('createSyncableStore', () => {
 			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
 
 			let subscribeCallCount = 0;
-			const fieldStore = store.getFieldStore('operations');
+			const fieldStore = store.watchField('operations');
 			fieldStore.subscribe(() => {
 				subscribeCallCount++;
 			});
@@ -2150,14 +2150,14 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Get field store twice
-			const fieldStore1 = store.getFieldStore('settings');
-			const fieldStore2 = store.getFieldStore('settings');
+			const fieldStore1 = store.watchField('settings');
+			const fieldStore2 = store.watchField('settings');
 
 			// Should be the same instance
 			expect(fieldStore1).toBe(fieldStore2);
 
 			// Different field should return different instance
-			const fieldStore3 = store.getFieldStore('operations');
+			const fieldStore3 = store.watchField('operations');
 			expect(fieldStore1).not.toBe(fieldStore3);
 		});
 	});
@@ -2556,7 +2556,7 @@ describe('createSyncableStore', () => {
 					async push() {
 						// Capture sync status during push
 						let syncStatus: SyncStatus | undefined;
-						store.syncStatusStore.subscribe((s) => (syncStatus = s))();
+						store.syncStatus$.subscribe((s) => (syncStatus = s))();
 						isSyncingWhilePushing = syncStatus?.isSyncing;
 						syncDisplayStateWhilePushing = syncStatus?.displayState;
 
@@ -2588,7 +2588,7 @@ describe('createSyncableStore', () => {
 
 			// Check final sync status
 			let finalSyncStatus: SyncStatus | undefined;
-			store.syncStatusStore.subscribe((s) => (finalSyncStatus = s))();
+			store.syncStatus$.subscribe((s) => (finalSyncStatus = s))();
 			expect(finalSyncStatus?.isSyncing).toBe(false);
 			expect(finalSyncStatus?.displayState).toBe('idle');
 		});
@@ -2619,7 +2619,7 @@ describe('createSyncableStore', () => {
 			await new Promise((r) => setTimeout(r, 50));
 
 			let syncStatus: SyncStatus | undefined;
-			store.syncStatusStore.subscribe((s) => (syncStatus = s))();
+			store.syncStatus$.subscribe((s) => (syncStatus = s))();
 			expect(syncStatus?.syncError?.message).toBe('Network failure');
 		});
 
@@ -2651,7 +2651,7 @@ describe('createSyncableStore', () => {
 			await new Promise((r) => setTimeout(r, 20));
 
 			let syncStatus: SyncStatus | undefined;
-			store.syncStatusStore.subscribe((s) => (syncStatus = s))();
+			store.syncStatus$.subscribe((s) => (syncStatus = s))();
 
 			// Initial lastSyncedAt after first sync should be set
 			const initialSyncedAt = syncStatus?.lastSyncedAt;
@@ -2804,7 +2804,7 @@ describe('createSyncableStore', () => {
 			expect(syncEvents.some((e) => e.type === 'failed')).toBe(true);
 
 			let syncStatus: SyncStatus | undefined;
-			store.syncStatusStore.subscribe((s) => (syncStatus = s))();
+			store.syncStatus$.subscribe((s) => (syncStatus = s))();
 			expect(syncStatus?.syncError?.message).toBe('Persistent error');
 		});
 
