@@ -1,0 +1,17 @@
+{
+	"name": "synqable-monorepo",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"devDependencies": {
+		"@changesets/cli": "^2.29.8"
+	},
+	"scripts": {
+		"prepublishOnly": "pnpm format:check && pnpm build",
+		"release": "pnpm prepublishOnly && git push --all && pnpm changeset publish && git push --tags",
+		"format": "pnpm run -r format",
+		"format:check": "pnpm run -r format:check",
+		"build": "pnpm run -r build",
+		"test": "pnpm run -r test"
+	}
+}
