@@ -814,19 +814,21 @@ describe('createSyncableStore', () => {
 		it('waits for pending saves to complete', async () => {
 			// Create a slow storage that we can control
 			let saveResolve: (() => void) | undefined;
-			let saveStarted = false;
+			let saveCount = 0;
 
 			const slowStorage: AsyncStorage<InternalStorage<TestSchema>> = {
 				async load(key: string) {
 					return storage.data.get(key);
 				},
 				async save(key: string, value: InternalStorage<TestSchema>) {
-					if (saveStarted) {
+					saveCount++;
+					// Make the second save slow (first save is from set(), second save won't happen in this test)
+					// But to test flush, we make the FIRST set() save slow
+					if (saveCount >= 1) {
 						await new Promise<void>((resolve) => {
 							saveResolve = resolve;
 						});
 					}
-					saveStarted = true;
 					storage.data.set(key, value);
 				},
 				async remove(key: string) {
@@ -848,7 +850,7 @@ describe('createSyncableStore', () => {
 
 			await store.load();
 
-			// Trigger a save
+			// Trigger a save - this will be the first save and will be slow
 			store.set('settings', { theme: 'light', volume: 0.8 });
 
 			// Wait a moment for the save to start

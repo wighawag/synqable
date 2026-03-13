@@ -567,10 +567,13 @@ export function createSyncableStore<S extends Schema>(
 			internalStorage = createDefaultInternalStorage();
 		}
 
-		const { storage: cleanedStorage } = cleanup(internalStorage, schema, clock());
+		const { storage: cleanedStorage, changes, tombstonesDeleted } = cleanup(internalStorage, schema, clock());
 		internalStorage = cleanedStorage;
 
-		await saveToStorage(account, internalStorage);
+		// Only save to storage if cleanup removed items or tombstones
+		if (changes.length > 0 || tombstonesDeleted) {
+			await saveToStorage(account, internalStorage);
+		}
 
 		asyncState = {
 			status: 'ready',
