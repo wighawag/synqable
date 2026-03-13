@@ -30,7 +30,11 @@ export {
 	type SyncAdapter,
 	type SyncConfig,
 	type PullResponse,
+	type PullResponseSuccess,
+	type PullResponseError,
 	type PushResponse,
+	type PushResponseSuccess,
+	type PushResponseError,
 } from './types.js';
 
 // Store creation

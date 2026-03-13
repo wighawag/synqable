@@ -331,12 +331,17 @@ export function createSyncableStore<S extends Schema>(
 			}
 
 			const pullResponse = await syncAdapter.pull(currentAccount);
-
+	
+			// Handle pull error
+			if (!pullResponse.success) {
+				throw new Error(pullResponse.error);
+			}
+	
 			let dataToSync = internalStorage;
 			let shouldPush = false;
-
+	
 			const serverData = pullResponse.data ?? createDefaultInternalStorage();
-
+	
 			const {
 				storage: cleanedMerged,
 				changes,
@@ -344,27 +349,27 @@ export function createSyncableStore<S extends Schema>(
 			} = mergeAndCleanup(internalStorage, serverData, schema, clock());
 			dataToSync = cleanedMerged;
 			shouldPush = serverNeedsUpdate;
-
+	
 			if (changes.length > 0) {
 				internalStorage = cleanedMerged;
 				asyncState = { ...asyncState, data: cleanedMerged.data };
-
+	
 				for (const change of changes) {
 					emitter.emit(
 						change.event as keyof StoreEvents<S>,
 						change.data as StoreEvents<S>[keyof StoreEvents<S>],
 					);
 				}
-
+	
 				await saveToStorage(currentAccount, cleanedMerged);
 			}
-
+	
 			if (shouldPush) {
 				const clockBigInt = BigInt(clock());
 				const newCounter =
 					clockBigInt > pullResponse.counter ? clockBigInt : pullResponse.counter + 1n;
 				const pushResponse = await syncAdapter.push(currentAccount, dataToSync, newCounter);
-
+	
 				if (!pushResponse.success) {
 					if (retryCount < maxRetries) {
 						const backoffDelay = retryBackoffMs * Math.pow(2, retryCount);
@@ -373,10 +378,10 @@ export function createSyncableStore<S extends Schema>(
 						}, backoffDelay);
 						return;
 					} else {
-						throw new Error(pushResponse.error || 'Push rejected after max retries');
+						throw new Error(pushResponse.error);
 					}
 				}
-
+	
 				syncDirty = false;
 				mutableSyncStatus.lastSyncedAt = clock();
 				mutableSyncStatus.hasPendingSync = false;

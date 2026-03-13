@@ -317,11 +317,13 @@ export type StoreChange =
 // Server Sync Types
 // ============================================================================
 
-// TODO use discriminated type for error ?
 /**
- * Response from pull operation.
+ * Successful pull response.
  */
-export interface PullResponse<S extends Schema> {
+export interface PullResponseSuccess<S extends Schema> {
+	/** Indicates successful pull */
+	success: true;
+
 	/** Server data, or null if no data exists */
 	data: InternalStorage<S> | null;
 
@@ -329,21 +331,51 @@ export interface PullResponse<S extends Schema> {
 	counter: bigint;
 }
 
-
-// TODO use discriminated type
 /**
- * Response from push operation.
+ * Failed pull response.
  */
-export interface PushResponse {
-	/** Whether the push was successful */
-	success: boolean;
+export interface PullResponseError {
+	/** Indicates failed pull */
+	success: false;
 
-	/** If failed due to stale counter, the server's current counter */
+	/** Error message describing the failure */
+	error: string;
+}
+
+/**
+ * Response from pull operation (discriminated union).
+ */
+export type PullResponse<S extends Schema> = PullResponseSuccess<S> | PullResponseError;
+
+/**
+ * Successful push response.
+ */
+export interface PushResponseSuccess {
+	/** Indicates successful push */
+	success: true;
+
+	/** Server's current counter after the push */
+	currentCounter?: bigint;
+}
+
+/**
+ * Failed push response.
+ */
+export interface PushResponseError {
+	/** Indicates failed push */
+	success: false;
+
+	/** Server's current counter (useful for conflict resolution) */
 	currentCounter?: bigint;
 
-	/** Error message if failed */
-	error?: string;
+	/** Error message describing the failure */
+	error: string;
 }
+
+/**
+ * Response from push operation (discriminated union).
+ */
+export type PushResponse = PushResponseSuccess | PushResponseError;
 
 /**
  * Server sync adapter interface.

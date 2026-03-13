@@ -57,8 +57,8 @@ function createMockSyncAdapter(options?: {
 	pushCount?: { value: number };
 }): SyncAdapter<TestSchema> {
 	const {
-		onPull = async () => ({ data: null, counter: 0n }),
-		onPush = async () => ({ success: true }),
+		onPull = async () => ({ success: true as const, data: null, counter: 0n }),
+		onPush = async () => ({ success: true as const }),
 		pullCount,
 		pushCount,
 	} = options ?? {};
@@ -685,7 +685,7 @@ describe('createSyncableStore', () => {
 
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					await pushPromise;
@@ -899,7 +899,7 @@ describe('createSyncableStore', () => {
 		it('handles not-ready state gracefully', async () => {
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					return { success: true };
@@ -929,7 +929,7 @@ describe('createSyncableStore', () => {
 
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					pushCallCount++;
@@ -981,7 +981,7 @@ describe('createSyncableStore', () => {
 			const mockSyncAdapter = {
 				async pull() {
 					pullCallCount++;
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					return { success: true };
@@ -1041,7 +1041,7 @@ describe('createSyncableStore', () => {
 			const mockSyncAdapter = {
 				async pull() {
 					pullCallCount++;
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					return { success: true };
@@ -1104,7 +1104,7 @@ describe('createSyncableStore', () => {
 			let pushCallCount = 0;
 			const mockSyncAdapter = {
 				async pull() {
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					pushCallCount++;
@@ -1162,7 +1162,7 @@ describe('createSyncableStore', () => {
 		it('updates syncState to offline when going offline', async () => {
 			const mockSyncAdapter = {
 				async pull() {
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					return { success: true };
@@ -1218,7 +1218,7 @@ describe('createSyncableStore', () => {
 			let pushCallCount = 0;
 			const mockSyncAdapter = {
 				async pull() {
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					pushCallCount++;
@@ -1273,7 +1273,7 @@ describe('createSyncableStore', () => {
 			const mockSyncAdapter = {
 				async pull() {
 					pullCallCount++;
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					return { success: true };
@@ -1309,7 +1309,7 @@ describe('createSyncableStore', () => {
 			const mockSyncAdapter = {
 				async pull() {
 					pullCallCount++;
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					return { success: true };
@@ -1345,7 +1345,7 @@ describe('createSyncableStore', () => {
 			const mockSyncAdapter = {
 				async pull() {
 					pullCallCount++;
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					return { success: true };
@@ -1382,7 +1382,7 @@ describe('createSyncableStore', () => {
 		it('is false when no changes have been made', async () => {
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					return { success: true };
@@ -1412,7 +1412,7 @@ describe('createSyncableStore', () => {
 			let pushResolve: (() => void) | undefined;
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					await new Promise<void>((resolve) => {
@@ -1455,7 +1455,7 @@ describe('createSyncableStore', () => {
 			let pushResolve: (() => void) | undefined;
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					await new Promise<void>((resolve) => {
@@ -1503,7 +1503,7 @@ describe('createSyncableStore', () => {
 			let pushResolve: (() => void) | undefined;
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push(): Promise<PushResponse> {
 					await new Promise<void>((resolve) => {
@@ -2119,7 +2119,7 @@ describe('createSyncableStore', () => {
 			const pullCount = { value: 0 };
 			const mockAdapter = createMockSyncAdapter({
 				pullCount,
-				onPull: async () => ({
+				onPull: async () => ({ success: true,
 					data: {
 						$version: 1,
 						data: { settings: { theme: 'server', volume: 0.7 }, operations: {} },
@@ -2161,7 +2161,7 @@ describe('createSyncableStore', () => {
 
 			let pushResolve: (() => void) | undefined;
 			const mockAdapter = createMockSyncAdapter({
-				onPull: async () => ({
+				onPull: async () => ({ success: true,
 					data: {
 						$version: 1,
 						data: { settings: { theme: 'server', volume: 0.7 }, operations: {} },
@@ -2218,7 +2218,7 @@ describe('createSyncableStore', () => {
 			});
 
 			const mockAdapter = createMockSyncAdapter({
-				onPull: async () => ({
+				onPull: async () => ({ success: true,
 					data: {
 						$version: 1,
 						data: { settings: { theme: 'server', volume: 0.7 }, operations: {} },
@@ -2414,7 +2414,7 @@ describe('createSyncableStore', () => {
 				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
 				sync: {
 					async pull() {
-						return { data: null, counter: 0n };
+						return { success: true, data: null, counter: 0n };
 					},
 					async push() {
 						// Capture sync status during push
@@ -2592,7 +2592,7 @@ describe('createSyncableStore', () => {
 			let attempts = 0;
 			const mockAdapter: SyncAdapter<TestSchema> = {
 				async pull() {
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push() {
 					attempts++;
@@ -2630,7 +2630,7 @@ describe('createSyncableStore', () => {
 			let attempts = 0;
 			const mockAdapter: SyncAdapter<TestSchema> = {
 				async pull() {
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push() {
 					attempts++;
@@ -2676,7 +2676,7 @@ describe('createSyncableStore', () => {
 
 			const mockAdapter: SyncAdapter<TestSchema> = {
 				async pull() {
-					return { data: null, counter: 0n };
+					return { success: true, data: null, counter: 0n };
 				},
 				async push() {
 					callTimes.push(Date.now());
