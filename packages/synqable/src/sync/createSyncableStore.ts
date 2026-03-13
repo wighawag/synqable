@@ -371,15 +371,7 @@ export function createSyncableStore<S extends Schema>(
 				const pushResponse = await syncAdapter.push(currentAccount, dataToSync, newCounter);
 	
 				if (!pushResponse.success) {
-					if (retryCount < maxRetries) {
-						const backoffDelay = retryBackoffMs * Math.pow(2, retryCount);
-						setTimeout(() => {
-							performSync(retryCount + 1);
-						}, backoffDelay);
-						return;
-					} else {
-						throw new Error(pushResponse.error);
-					}
+					throw new Error(pushResponse.error);
 				}
 	
 				syncDirty = false;
