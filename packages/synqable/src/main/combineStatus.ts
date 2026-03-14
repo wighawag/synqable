@@ -20,7 +20,7 @@ export function combineStatus(
 } {
 	return {
 		hasError: sync.syncError !== null || storage.storageError !== null,
-		hasUnsavedChanges: storage.isSaving,
+		hasUnsavedChanges: storage.isSaving || sync.hasPendingSync,
 		isBusy: sync.isSyncing || storage.isSaving,
 	};
 }
