@@ -1647,14 +1647,11 @@ describe('createSyncableStore', () => {
 
 			await store.load();
 
-			// Store should remain in loading state since migration failed
-			expect(store.state.status).toBe('loading');
-
-			// Error should be captured in storageStatus
-			let storageStatusValue: StorageStatus | undefined;
-			store.storageStatus$.subscribe((s) => (storageStatusValue = s));
-			expect(storageStatusValue?.storageError).toBeDefined();
-			expect(storageStatusValue?.storageError?.message).toBe('Missing migration for version 2');
+			// Store should be idle with loadError set
+			expect(store.state.status).toBe('idle');
+			expect(store.state.isLoading).toBe(false);
+			expect(store.state.loadError).toBeDefined();
+			expect(store.state.loadError?.message).toBe('Missing migration for version 2');
 		});
 
 		it('does not run migrations when schema version matches', async () => {
@@ -1965,8 +1962,8 @@ describe('createSyncableStore', () => {
 				clock: () => clock,
 			});
 
-			const states: string[] = [];
-			store.subscribe((state) => states.push(state.status));
+			const states: {status: string; isLoading: boolean}[] = [];
+			store.subscribe((state) => states.push({status: state.status, isLoading: state.isLoading}));
 
 			// Clear initial subscription
 			states.length = 0;
@@ -1974,9 +1971,9 @@ describe('createSyncableStore', () => {
 			// Trigger state transitions
 			await store.load();
 
-			// Should have loading -> ready transitions
-			expect(states).toContain('loading');
-			expect(states).toContain('ready');
+			// Should have loading (isLoading: true) -> ready (isLoading: false) transitions
+			expect(states.some((s) => s.isLoading === true)).toBe(true);
+			expect(states.some((s) => s.status === 'ready' && s.isLoading === false)).toBe(true);
 		});
 
 		it('does NOT trigger on permanent field set()', async () => {

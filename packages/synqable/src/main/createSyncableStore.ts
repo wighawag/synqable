@@ -58,7 +58,12 @@ export function createSyncableStore<S extends Schema>(
 	const retryBackoffMs = syncOptions?.retryBackoffMs ?? 1000;
 
 	// State
-	let asyncState: AsyncState<DataOf<S>> = {status: 'idle', account: undefined};
+	let asyncState: AsyncState<DataOf<S>> = {
+		status: 'idle',
+		account: undefined,
+		isLoading: false,
+		loadError: null,
+	};
 	let internalStorage: InternalStorage<S> | null = null;
 
 	// Storage state - simplified with just boolean flags
@@ -132,7 +137,7 @@ export function createSyncableStore<S extends Schema>(
 		| {type: 'saved'; timestamp: number}
 		| {type: 'failed'; error: Error};
 
-	type StateEventData = {type: 'idle'} | {type: 'loading'} | {type: 'ready'};
+	type StateEventData = {type: 'idle'; error?: Error} | {type: 'loading'} | {type: 'ready'};
 
 	function emitSyncEvent(event: SyncEventData): void {
 		(emitter.emit as (eventName: '$store:sync', data: SyncEventData) => void)('$store:sync', event);
@@ -447,20 +452,20 @@ export function createSyncableStore<S extends Schema>(
 	}
 
 	async function load(): Promise<void> {
-		if (asyncState.status !== 'idle') {
+		if (asyncState.status !== 'idle' || asyncState.isLoading) {
 			throw new Error('Store already loaded or loading');
 		}
 
-		asyncState = {status: 'loading', account};
+		asyncState = {status: 'idle', account, isLoading: true, loadError: null};
 		emitStateEvent({type: 'loading'});
 
-		const localData = await storageAdapter.load(storageKey);
+		try {
+			const localData = await storageAdapter.load(storageKey);
 
-		if (localData) {
-			const storedVersion = localData.$version ?? 0;
+			if (localData) {
+				const storedVersion = localData.$version ?? 0;
 
-			if (storedVersion < schemaVersion) {
-				try {
+				if (storedVersion < schemaVersion) {
 					let migrated: unknown = localData;
 					for (let v = storedVersion + 1; v <= schemaVersion; v++) {
 						const migration = migrations?.[v];
@@ -471,40 +476,42 @@ export function createSyncableStore<S extends Schema>(
 						(migrated as {$version: number}).$version = v;
 					}
 					internalStorage = migrated as InternalStorage<S>;
-				} catch (error) {
-					mutableStorageStatus.storageError = error as Error;
-					emitStorageEvent({type: 'failed', error: error as Error});
-					return;
+				} else {
+					internalStorage = localData;
 				}
 			} else {
-				internalStorage = localData;
+				internalStorage = createDefaultInternalStorage();
 			}
-		} else {
-			internalStorage = createDefaultInternalStorage();
+
+			const {
+				storage: cleanedStorage,
+				// changes,
+				// tombstonesDeleted,
+			} = cleanup(internalStorage, schema, clock());
+			internalStorage = cleanedStorage;
+
+			// Cleanup results will be persisted when the next mutation or sync occurs
+
+			asyncState = {
+				status: 'ready',
+				account,
+				isLoading: false,
+				loadError: null,
+				data: internalStorage.data,
+			};
+			emitStateEvent({type: 'ready'});
+
+			if (syncAdapter) {
+				performSync();
+			}
+
+			setupStorageWatch();
+			setupGlobalListeners();
+		} catch (error) {
+			const loadError = error as Error;
+			asyncState = {status: 'idle', account, isLoading: false, loadError};
+			emitStateEvent({type: 'idle', error: loadError});
 		}
-
-		const {
-			storage: cleanedStorage,
-			// changes,
-			// tombstonesDeleted,
-		} = cleanup(internalStorage, schema, clock());
-		internalStorage = cleanedStorage;
-
-		// Cleanup results will be persisted when the next mutation or sync occurs
-
-		asyncState = {
-			status: 'ready',
-			account,
-			data: internalStorage.data,
-		};
-		emitStateEvent({type: 'ready'});
-
-		if (syncAdapter) {
-			performSync();
-		}
-
-		setupStorageWatch();
-		setupGlobalListeners();
 	}
 
 	const store: SyncableStore<S> = {
@@ -864,14 +871,11 @@ export function createSyncableStore<S extends Schema>(
 		},
 
 		retryLoad(): void {
-			if (asyncState.status !== 'loading') {
-				throw new Error('Can only retry when in loading state');
+			if (asyncState.status !== 'idle' || !asyncState.loadError) {
+				throw new Error('Can only retry when load has failed');
 			}
 
-			mutableStorageStatus.storageError = null;
-			emitStorageEvent({type: 'saved', timestamp: clock()});
-
-			asyncState = {status: 'idle', account: undefined};
+			asyncState = {status: 'idle', account: undefined, isLoading: false, loadError: null};
 			load();
 		},
 

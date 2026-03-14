@@ -312,12 +312,13 @@ describe('createMultiAccountStore', () => {
 			// First notification should be the new store in loading state (no null transition)
 			expect(storeHistory[0]).not.toBeNull();
 			expect(storeHistory[0]?.account).toBe(account2);
-			expect(storeHistory[0]?.state.status).toBe('loading');
+			expect(storeHistory[0]?.state.isLoading).toBe(true);
 
 			await new Promise((r) => setTimeout(r, 50));
 
 			// Store should now be ready (same store reference, state changed internally)
 			expect(storeHistory[0]?.state.status).toBe('ready');
+			expect(storeHistory[0]?.state.isLoading).toBe(false);
 		});
 	});
 
@@ -506,7 +507,40 @@ describe('createMultiAccountStore', () => {
 		});
 
 		// Factory is expected to not throw, so no test for that case
-		// Load errors are handled by the store internally - tested in syncable-store.test.ts
+
+		it('shows error state when load fails', async () => {
+			const failingStorage: AsyncStorage<InternalStorage<TestSchema>> = {
+				async load() {
+					throw new Error('Storage error');
+				},
+				async save() {},
+				async remove() {},
+				async exists() {
+					return false;
+				},
+			};
+
+			const failingFactory = createMockFactory(failingStorage);
+
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: failingFactory.factory,
+			});
+
+			let receivedStore: SyncableStore<TestSchema> | null = null;
+			multiStore.subscribe((store) => {
+				receivedStore = store;
+			});
+
+			mockAccount.setAccount('0x1234567890123456789012345678901234567890');
+			await new Promise((r) => setTimeout(r, 50));
+
+			// Store exists but shows error state (store handles errors internally)
+			expect(receivedStore).not.toBeNull();
+			expect(receivedStore!.state.status).toBe('idle');
+			expect(receivedStore!.state.loadError).toBeDefined();
+			expect(receivedStore!.state.loadError?.message).toBe('Storage error');
+		});
 
 		it('re-subscribe after all subscribers left works correctly', async () => {
 			const multiStore = createMultiAccountStore({
@@ -585,13 +619,14 @@ describe('createMultiAccountStore', () => {
 			// Should receive store in loading state immediately (no null transition)
 			expect(receivedStores[0]).not.toBeNull();
 			expect(receivedStores[0]?.account).toBe(account);
-			expect(receivedStores[0]?.state.status).toBe('loading');
+			expect(receivedStores[0]?.state.isLoading).toBe(true);
 
 			// Wait for load to complete
 			await new Promise((r) => setTimeout(r, 100));
 
 			// Store's internal state should now be ready
 			expect(receivedStores[0]?.state.status).toBe('ready');
+			expect(receivedStores[0]?.state.isLoading).toBe(false);
 		});
 	});
 

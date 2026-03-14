@@ -149,8 +149,9 @@ export type InternalStorage<S extends Schema> = {
 
 /**
  * State lifecycle events - emitted on async state transitions.
+ * The 'idle' event includes an optional error when load failed.
  */
-export type StateEvent = {type: 'idle'} | {type: 'loading'} | {type: 'ready'};
+export type StateEvent = {type: 'idle'; error?: Error} | {type: 'loading'} | {type: 'ready'};
 
 // ============================================================================
 // Storage Status and Events
@@ -239,12 +240,22 @@ export type StoreEvents<S extends Schema> = BaseStoreEvents<S> & SchemaEvents<S>
 // ============================================================================
 
 /**
+ * Base async state fields common to all states.
+ */
+interface AsyncStateBase {
+	/** Whether the store is currently loading */
+	isLoading: boolean;
+	/** Load error if the last load attempt failed */
+	loadError: Error | null;
+}
+
+/**
  * Async state for store data.
+ * Uses isLoading/loadError pattern consistent with storageStatus/syncStatus.
  */
 export type AsyncState<T> =
-	| {status: 'idle'; account: undefined}
-	| {status: 'loading'; account: `0x${string}`}
-	| {status: 'ready'; account: `0x${string}`; data: T};
+	| (AsyncStateBase & {status: 'idle'; account: `0x${string}` | undefined})
+	| (AsyncStateBase & {status: 'ready'; account: `0x${string}`; data: T});
 
 // ============================================================================
 // Change Tracking Types
