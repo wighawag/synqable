@@ -746,6 +746,10 @@ export function createSyncableStore<S extends Schema>(
 				window.removeEventListener('beforeunload', handleBeforeUnload);
 				handleBeforeUnload = undefined;
 			}
+
+			// Clear store caches to free memory
+			itemStoreCache.clear();
+			fieldStoreCache.clear();
 		},
 
 		watchItem<K extends MapKeys<S>>(

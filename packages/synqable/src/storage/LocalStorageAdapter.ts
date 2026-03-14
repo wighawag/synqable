@@ -67,19 +67,11 @@ export function createLocalStorageAdapter<T>(
 		},
 
 		async save(key: string, data: T): Promise<void> {
-			try {
-				localStorage.setItem(key, serialize(data));
-			} catch {
-				// Silently fail - localStorage might be full or unavailable
-			}
+			localStorage.setItem(key, serialize(data));
 		},
 
 		async remove(key: string): Promise<void> {
-			try {
-				localStorage.removeItem(key);
-			} catch {
-				// Silently fail
-			}
+			localStorage.removeItem(key);
 		},
 
 		async exists(key: string): Promise<boolean> {

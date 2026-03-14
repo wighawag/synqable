@@ -49,7 +49,7 @@ export function createMultiAccountStore<S extends Schema>(
 		}
 	}
 
-	async function handleAccountChange(account: `0x${string}` | undefined): Promise<void> {
+	function handleAccountChange(account: `0x${string}` | undefined): void {
 		// Edge case #4: Account store emits same account - no-op
 		if (account === currentAccount && currentStore) {
 			return;
