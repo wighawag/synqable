@@ -1,6 +1,6 @@
 {
 	"name": "synqable",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"publishConfig": {
 		"access": "public"
 	},
@@ -30,7 +30,7 @@
 		"vitest": "^4.0.18"
 	},
 	"scripts": {
-		"prepublishOnly": "pnpm format:check && pnpm build",
+		"prepublishOnly": "pnpm format:check && pnpm build && cp ../../README.md ./README.md",
 		"release": "pnpm prepublishOnly && git push --all && pnpm changeset publish && git push --tags",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
