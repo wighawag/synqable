@@ -56,14 +56,12 @@ export function createMultiAccountStore<S extends Schema>(
 		currentAccount = account;
 
 		// Stop and cleanup previous store
-		if (currentStore) {
-			currentStore.stop();
-			currentStore = null;
-			notify(); // Notify immediately that store is null/transitioning
-		}
+		currentStore?.stop();
 
-		// No account - stay null
+		// No account - transition to null
 		if (!account) {
+			currentStore = null;
+			notify();
 			return;
 		}
 
@@ -72,10 +70,15 @@ export function createMultiAccountStore<S extends Schema>(
 		try {
 			store = factory(account);
 		} catch (error) {
+			currentStore = null;
+			notify();
 			console.error('Failed to create store for account:', error);
-			// The store remains null - components will see the disconnect state
 			return;
 		}
+
+		// Set the new store immediately - subscribers see it in loading state
+		currentStore = store;
+		notify();
 
 		try {
 			// Load the store - async
@@ -87,22 +90,20 @@ export function createMultiAccountStore<S extends Schema>(
 				return;
 			}
 
-			// Race condition guard: only set if still the intended account
-			if (pendingAccount === account) {
-				currentStore = store;
-				notify();
-			} else {
-				// Account changed during load - cleanup orphan store
+			// Race condition: account changed during load - cleanup orphan store
+			if (pendingAccount !== account) {
 				store.stop();
 			}
+			// No need to notify again - store's internal state handles loading → ready
 		} catch (error) {
 			// Load failed - cleanup
 			store.stop();
 
-			// Only log if still the intended account
+			// Only handle if still the intended account
 			if (pendingAccount === account) {
+				currentStore = null;
+				notify();
 				console.error('Failed to load account data:', error);
-				// The store remains null - components will see the disconnect state
 			}
 		}
 	}

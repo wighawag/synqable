@@ -288,7 +288,7 @@ describe('createMultiAccountStore', () => {
 			expect(mockFactory.getCreatedStores().has(account2)).toBe(true);
 		});
 
-		it('notifies with null during transition', async () => {
+		it('notifies with new store immediately during transition', async () => {
 			const multiStore = createMultiAccountStore({
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
@@ -309,13 +309,15 @@ describe('createMultiAccountStore', () => {
 			storeHistory.length = 0;
 
 			mockAccount.setAccount(account2);
-			// First notification should be null (during transition)
-			expect(storeHistory[0]).toBeNull();
+			// First notification should be the new store in loading state (no null transition)
+			expect(storeHistory[0]).not.toBeNull();
+			expect(storeHistory[0]?.account).toBe(account2);
+			expect(storeHistory[0]?.state.status).toBe('loading');
 
 			await new Promise((r) => setTimeout(r, 50));
 
-			// Last notification should be the new store
-			expect(storeHistory[storeHistory.length - 1]?.account).toBe(account2);
+			// Store should now be ready (same store reference, state changed internally)
+			expect(storeHistory[0]?.state.status).toBe('ready');
 		});
 	});
 
@@ -604,7 +606,7 @@ describe('createMultiAccountStore', () => {
 	});
 
 	describe('subscriber added during account load', () => {
-		it('new subscriber receives null initially then store when ready', async () => {
+		it('new subscriber receives store in loading state initially then ready when loaded', async () => {
 			const slowStorage: AsyncStorage<InternalStorage<TestSchema>> = {
 				async load(key) {
 					await new Promise((r) => setTimeout(r, 50));
@@ -642,14 +644,16 @@ describe('createMultiAccountStore', () => {
 				receivedStores.push(store);
 			});
 
-			// Should receive null initially
-			expect(receivedStores[0]).toBeNull();
+			// Should receive store in loading state immediately (no null transition)
+			expect(receivedStores[0]).not.toBeNull();
+			expect(receivedStores[0]?.account).toBe(account);
+			expect(receivedStores[0]?.state.status).toBe('loading');
 
 			// Wait for load to complete
 			await new Promise((r) => setTimeout(r, 100));
 
-			// Should have received the store
-			expect(receivedStores[receivedStores.length - 1]).not.toBeNull();
+			// Store's internal state should now be ready
+			expect(receivedStores[0]?.state.status).toBe('ready');
 		});
 	});
 
