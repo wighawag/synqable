@@ -380,7 +380,7 @@ export function createSyncableStore<S extends Schema>(
 					);
 				}
 
-				await saveToStorage(currentAccount, cleanedMerged);
+				scheduleStorageSave(true);
 			}
 
 			if (shouldPush) {
@@ -494,15 +494,6 @@ export function createSyncableStore<S extends Schema>(
 					timestamp: mutableStorageStatus.lastSavedAt ?? clock(),
 				});
 			}
-		}
-	}
-
-	// Legacy wrapper for internal calls that need a promise
-	async function saveToStorage(acc: `0x${string}`, data: InternalStorage<S>): Promise<void> {
-		scheduleStorageSave(true); // Use immediate for internal sync operations
-		// Wait for save to complete
-		while (mutableStorageStatus.isSaving) {
-			await new Promise((r) => setTimeout(r, 10));
 		}
 	}
 
@@ -629,10 +620,7 @@ export function createSyncableStore<S extends Schema>(
 		} = cleanup(internalStorage, schema, clock());
 		internalStorage = cleanedStorage;
 
-		// Only save to storage if cleanup removed items or tombstones
-		if (changes.length > 0 || tombstonesDeleted) {
-			await saveToStorage(account, internalStorage);
-		}
+		// we could save to storage, here if cleanup has deleted items, but there is no point
 
 		asyncState = {
 			status: 'ready',
