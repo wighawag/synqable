@@ -505,70 +505,8 @@ describe('createMultiAccountStore', () => {
 			expect(slowFactory.getStoppedStores().has(account)).toBe(true);
 		});
 
-		it('handles factory throwing', async () => {
-			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-			const throwingFactory: SyncableStoreFactory<TestSchema> = () => {
-				throw new Error('Factory error');
-			};
-
-			const multiStore = createMultiAccountStore({
-				accountStore: mockAccount.store,
-				factory: throwingFactory,
-			});
-
-			let receivedStore: SyncableStore<TestSchema> | null = null;
-			multiStore.subscribe((store) => {
-				receivedStore = store;
-			});
-
-			mockAccount.setAccount('0x1234567890123456789012345678901234567890');
-			await new Promise((r) => setTimeout(r, 50));
-
-			// Store should be null
-			expect(receivedStore).toBeNull();
-			// Error should be logged
-			expect(consoleSpy).toHaveBeenCalled();
-
-			consoleSpy.mockRestore();
-		});
-
-		it('handles load failure gracefully', async () => {
-			const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-			const failingStorage: AsyncStorage<InternalStorage<TestSchema>> = {
-				async load() {
-					throw new Error('Storage error');
-				},
-				async save() {},
-				async remove() {},
-				async exists() {
-					return false;
-				},
-			};
-
-			const failingFactory = createMockFactory(failingStorage);
-
-			const multiStore = createMultiAccountStore({
-				accountStore: mockAccount.store,
-				factory: failingFactory.factory,
-			});
-
-			let receivedStore: SyncableStore<TestSchema> | null = null;
-			multiStore.subscribe((store) => {
-				receivedStore = store;
-			});
-
-			mockAccount.setAccount('0x1234567890123456789012345678901234567890');
-			await new Promise((r) => setTimeout(r, 50));
-
-			// Store should be null due to load failure
-			expect(receivedStore).toBeNull();
-			// Error should be logged
-			expect(consoleSpy).toHaveBeenCalled();
-
-			consoleSpy.mockRestore();
-		});
+		// Factory is expected to not throw, so no test for that case
+		// Load errors are handled by the store internally - tested in syncable-store.test.ts
 
 		it('re-subscribe after all subscribers left works correctly', async () => {
 			const multiStore = createMultiAccountStore({

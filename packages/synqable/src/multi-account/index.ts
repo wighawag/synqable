@@ -6,7 +6,12 @@
  */
 
 import type {Schema, SyncableStore} from '../main/types.js';
-import type {AccountStore, SyncableStoreFactory, MultiAccountStoreConfig, MultiAccountStore} from './types.js';
+import type {
+	AccountStore,
+	SyncableStoreFactory,
+	MultiAccountStoreConfig,
+	MultiAccountStore,
+} from './types.js';
 
 // Re-export types
 export type {AccountStore, SyncableStoreFactory, MultiAccountStoreConfig, MultiAccountStore};
@@ -33,7 +38,6 @@ export function createMultiAccountStore<S extends Schema>(
 	// State
 	let currentStore: SyncableStore<S> | null = null;
 	let currentAccount: `0x${string}` | undefined;
-	let pendingAccount: `0x${string}` | undefined;
 	let unsubscribeAccount: (() => void) | undefined;
 
 	// Subscribers
@@ -51,12 +55,10 @@ export function createMultiAccountStore<S extends Schema>(
 			return;
 		}
 
-		// Track which account we are switching to
-		pendingAccount = account;
-		currentAccount = account;
-
 		// Stop and cleanup previous store
 		currentStore?.stop();
+
+		currentAccount = account;
 
 		// No account - transition to null
 		if (!account) {
@@ -65,47 +67,13 @@ export function createMultiAccountStore<S extends Schema>(
 			return;
 		}
 
-		// Edge case #5: Factory throws
-		let store: SyncableStore<S>;
-		try {
-			store = factory(account);
-		} catch (error) {
-			currentStore = null;
-			notify();
-			console.error('Failed to create store for account:', error);
-			return;
-		}
+		let store = factory(account);
 
 		// Set the new store immediately - subscribers see it in loading state
 		currentStore = store;
 		notify();
-
-		try {
-			// Load the store - async
-			await store.load();
-
-			// Edge case #2: All subscribers leave during load
-			if (subscribers.size === 0) {
-				store.stop();
-				return;
-			}
-
-			// Race condition: account changed during load - cleanup orphan store
-			if (pendingAccount !== account) {
-				store.stop();
-			}
-			// No need to notify again - store's internal state handles loading → ready
-		} catch (error) {
-			// Load failed - cleanup
-			store.stop();
-
-			// Only handle if still the intended account
-			if (pendingAccount === account) {
-				currentStore = null;
-				notify();
-				console.error('Failed to load account data:', error);
-			}
-		}
+		// load it
+		store.load();
 	}
 
 	function start(): void {
@@ -121,7 +89,6 @@ export function createMultiAccountStore<S extends Schema>(
 		currentStore?.stop();
 		currentStore = null;
 		currentAccount = undefined;
-		pendingAccount = undefined;
 	}
 
 	return {
