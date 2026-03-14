@@ -27,18 +27,16 @@ export {
 	type StoreChange,
 	type StoreEvents,
 	type MutationOptions,
+	type SyncableStore,
+	type SyncableStoreConfig,
+	type Readable,
 } from './types.js';
 
 // Combined status utility
 export {combineStatus} from './combineStatus.js';
 
 // Store creation
-export {
-	createSyncableStore,
-	type SyncableStore,
-	type SyncableStoreConfig,
-	type Readable,
-} from './createSyncableStore.js';
+export {createSyncableStore} from './createSyncableStore.js';
 
 // Merge functions (for advanced use)
 export {

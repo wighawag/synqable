@@ -6,6 +6,9 @@
  * - Map: Key-value collection with per-item timestamps and deleteAt
  */
 
+import {AsyncStorage} from '../storage/types.js';
+import {StoreEventsWithSync, SyncAdapter, SyncConfig, SyncStatus} from '../sync/types.js';
+
 // ============================================================================
 // Field Type Markers
 // ============================================================================
@@ -269,4 +272,138 @@ export interface MutationOptions {
 	 * Use for critical data that must persist immediately.
 	 */
 	immediate?: boolean;
+}
+
+// ============================================================================
+// Readable Store Interface (Svelte store contract)
+// ============================================================================
+
+export interface Readable<T> {
+	subscribe(callback: (value: T) => void): () => void;
+}
+
+// ============================================================================
+// Store Configuration
+// ============================================================================
+
+export interface SyncableStoreConfig<S extends Schema> {
+	/** Schema definition */
+	schema: S;
+
+	/** Static account address - store is bound to this account */
+	account: `0x${string}`;
+
+	/** Local storage adapter */
+	storage: AsyncStorage<InternalStorage<S>>;
+
+	/** Storage key - direct string */
+	storageKey: string;
+
+	/** Default data factory */
+	defaultData: () => DataOf<S>;
+
+	/** Clock function for timestamps (default: Date.now) */
+	clock?: () => number;
+
+	/** Schema version for migrations */
+	schemaVersion?: number;
+
+	/** Optional: Server sync adapter */
+	sync?: SyncAdapter<S>;
+
+	/** Optional: Sync configuration */
+	syncConfig?: SyncConfig;
+
+	/** Migration functions keyed by target version */
+	migrations?: Record<number, (oldData: unknown) => InternalStorage<S>>;
+}
+
+// ============================================================================
+// Store Interface
+// ============================================================================
+
+export interface SyncableStore<S extends Schema> {
+	/** Current async state (deeply readonly to prevent direct mutation) */
+	readonly state: DeepReadonly<AsyncState<DataOf<S>>>;
+
+	/** The account this store is bound to */
+	readonly account: `0x${string}`;
+
+	/** Set a permanent field value */
+	set<K extends PermanentKeys<S>>(
+		field: K,
+		value: ExtractPermanent<S[K]>,
+		options?: MutationOptions,
+	): void;
+
+	/** Patch a permanent field with partial updates */
+	patch<K extends PermanentKeys<S>>(
+		field: K,
+		value: DeepPartial<ExtractPermanent<S[K]>>,
+		options?: MutationOptions,
+	): void;
+
+	/** Add an item to a map field */
+	add<K extends MapKeys<S>>(
+		field: K,
+		key: string,
+		value: ExtractMapItem<S[K]>,
+		options: {deleteAt: number; immediate?: boolean},
+	): void;
+
+	/** Update an existing map item */
+	update<K extends MapKeys<S>>(
+		field: K,
+		key: string,
+		value: ExtractMapItem<S[K]>,
+		options?: MutationOptions,
+	): void;
+
+	/** Remove an item from a map field */
+	remove<K extends MapKeys<S>>(field: K, key: string, options?: MutationOptions): void;
+
+	/** Subscribe to state changes (Svelte store contract) */
+	subscribe(callback: (state: AsyncState<DataOf<S>>) => void): () => void;
+
+	/** Subscribe to type-safe events */
+	on<E extends keyof StoreEventsWithSync<S>>(
+		event: E,
+		callback: (data: StoreEventsWithSync<S>[E]) => void,
+	): () => void;
+
+	/** Unsubscribe from events */
+	off<E extends keyof StoreEventsWithSync<S>>(
+		event: E,
+		callback: (data: StoreEventsWithSync<S>[E]) => void,
+	): void;
+
+	/** Load data from storage - must be called to initialize */
+	load(): Promise<void>;
+
+	/** Stop watching and clean up */
+	stop(): void;
+
+	/** Watch a specific map item reactively */
+	watchItem<K extends MapKeys<S>>(
+		field: K,
+		key: string,
+	): Readable<(ExtractMapItem<S[K]> & {deleteAt: number}) | undefined>;
+
+	/** Watch a top-level field reactively */
+	watchField<K extends keyof S>(field: K): Readable<DataOf<S>[K] | undefined>;
+
+	/** Reactive sync status */
+	readonly syncStatus$: Readable<SyncStatus>;
+
+	/** Reactive storage status */
+	readonly storageStatus$: Readable<StorageStatus>;
+
+	/** Force sync to server now */
+	syncNow(): Promise<void>;
+
+	/** Retry loading after a migration failure */
+	retryLoad(): void;
+
+	/** Wait for all pending storage saves to complete */
+	flush(timeoutMs?: number): Promise<void>;
 }
