@@ -6,3 +6,6 @@ export * from './storage/index.js';
 
 // Sync module (server synchronization)
 export * from './sync/index.js';
+
+// Multi-account module (account switching)
+export * from './multi-account/index.js';

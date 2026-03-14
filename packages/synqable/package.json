@@ -36,6 +36,7 @@
 		"format:check": "prettier --check .",
 		"build": "tsc",
 		"dev": "as-soon -w src pnpm build",
+		"test:typecheck": "tsc --project tsconfig.check.json",
 		"test": "vitest run",
 		"test:watch": "vitest"
 	}
