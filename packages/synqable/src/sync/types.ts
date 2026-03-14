@@ -143,14 +143,11 @@ export interface SyncAdapter<S extends Schema> {
 }
 
 /**
- * Sync configuration.
+ * Sync configuration options.
  */
-export interface SyncConfig {
+export interface SyncOptions {
 	/** Debounce delay for pushing changes (default: 1000ms) */
 	debounceMs?: number;
-
-	/** Debounce delay for local storage (default: 100ms) */
-	storageDebounceMs?: number;
 
 	/** Interval for periodic sync (default: 30000ms, 0 to disable) */
 	intervalMs?: number;
@@ -166,4 +163,15 @@ export interface SyncConfig {
 
 	/** Initial backoff delay for retries (default: 1000ms) */
 	retryBackoffMs?: number;
+}
+
+/**
+ * Combined sync configuration with adapter and options.
+ */
+export interface SyncConfig<S extends Schema> {
+	/** Server sync adapter */
+	adapter: SyncAdapter<S>;
+
+	/** Sync options */
+	options?: SyncOptions;
 }

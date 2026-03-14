@@ -88,8 +88,7 @@ describe('createSyncableStore', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
-			storage,
-			storageKey: 'test-key',
+			storage: {adapter: storage, key: 'test-key'},
 			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
@@ -101,8 +100,7 @@ describe('createSyncableStore', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
-			storage,
-			storageKey: 'test-key',
+			storage: {adapter: storage, key: 'test-key'},
 			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
@@ -117,8 +115,7 @@ describe('createSyncableStore', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
-			storage,
-			storageKey: 'test-key',
+			storage: {adapter: storage, key: 'test-key'},
 			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
@@ -130,8 +127,7 @@ describe('createSyncableStore', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
-			storage,
-			storageKey: 'test-key',
+			storage: {adapter: storage, key: 'test-key'},
 			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
@@ -151,8 +147,7 @@ describe('createSyncableStore', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
-			storage,
-			storageKey: 'test-key',
+			storage: {adapter: storage, key: 'test-key'},
 			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
@@ -174,8 +169,7 @@ describe('createSyncableStore', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
-			storage,
-			storageKey: 'test-key',
+			storage: {adapter: storage, key: 'test-key'},
 			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
@@ -198,8 +192,7 @@ describe('createSyncableStore', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
-			storage,
-			storageKey: 'test-key',
+			storage: {adapter: storage, key: 'test-key'},
 			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
@@ -219,8 +212,7 @@ describe('createSyncableStore', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
-			storage,
-			storageKey: 'test-key',
+			storage: {adapter: storage, key: 'test-key'},
 			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
@@ -236,8 +228,7 @@ describe('createSyncableStore', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
-			storage,
-			storageKey: 'test-key',
+			storage: {adapter: storage, key: 'test-key'},
 			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
@@ -253,8 +244,7 @@ describe('createSyncableStore', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
-			storage,
-			storageKey: 'test-key',
+			storage: {adapter: storage, key: 'test-key'},
 			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
@@ -268,8 +258,7 @@ describe('createSyncableStore', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
-			storage,
-			storageKey: 'test-key',
+			storage: {adapter: storage, key: 'test-key'},
 			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
@@ -302,8 +291,7 @@ describe('createSyncableStore', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
-			storage,
-			storageKey: 'test-key',
+			storage: {adapter: storage, key: 'test-key'},
 			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
@@ -322,8 +310,7 @@ describe('createSyncableStore', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
-			storage,
-			storageKey: 'test-key',
+			storage: {adapter: storage, key: 'test-key'},
 			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
@@ -339,8 +326,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -361,8 +347,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -387,8 +372,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -414,8 +398,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -440,8 +423,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -459,8 +441,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -484,8 +465,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -502,8 +482,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -528,8 +507,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -556,8 +534,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -586,8 +563,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -615,8 +591,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -641,8 +616,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -661,8 +635,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -696,12 +669,10 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				sync: mockSyncAdapter,
-				syncConfig: {debounceMs: 10},
+				sync: {adapter: mockSyncAdapter, options: {debounceMs: 10}},
 			});
 
 			await store.load();
@@ -759,11 +730,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: slowStorage,
-				storageKey: 'test-key',
+				storage: {adapter: slowStorage, key: 'test-key', options: {debounceMs: 0}},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				syncConfig: {storageDebounceMs: 0}, // Disable debounce for immediate saves
 			});
 
 			await store.load();
@@ -797,8 +766,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -843,11 +811,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: slowStorage,
-				storageKey: 'test-key',
+				storage: {adapter: slowStorage, key: 'test-key', options: {debounceMs: 0}},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				syncConfig: {storageDebounceMs: 0}, // Disable debounce for immediate saves
 			});
 
 			await store.load();
@@ -888,8 +854,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -913,11 +878,10 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				sync: mockSyncAdapter,
+				sync: {adapter: mockSyncAdapter},
 			});
 
 			// Store is still idle (not loaded)
@@ -947,12 +911,10 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				sync: mockSyncAdapter,
-				syncConfig: {debounceMs: 5000}, // Long debounce
+				sync: {adapter: mockSyncAdapter, options: {debounceMs: 5000}}, // Long debounce
 			});
 
 			await store.load();
@@ -980,7 +942,7 @@ describe('createSyncableStore', () => {
 	});
 
 	describe('syncOnVisible', () => {
-		it('can be disabled via syncConfig.syncOnVisible = false', async () => {
+		it('can be disabled via sync.options.syncOnVisible = false', async () => {
 			let pullCallCount = 0;
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
@@ -1013,12 +975,10 @@ describe('createSyncableStore', () => {
 				const store = createSyncableStore({
 					schema,
 					account: '0x1234567890123456789012345678901234567890',
-					storage,
-					storageKey: 'test-key',
+					storage: {adapter: storage, key: 'test-key'},
 					defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 					clock: () => clock,
-					sync: mockSyncAdapter,
-					syncConfig: {syncOnVisible: false}, // Disable syncOnVisible
+					sync: {adapter: mockSyncAdapter, options: {syncOnVisible: false}}, // Disable syncOnVisible
 				});
 
 				await store.load();
@@ -1073,11 +1033,10 @@ describe('createSyncableStore', () => {
 				const store = createSyncableStore({
 					schema,
 					account: '0x1234567890123456789012345678901234567890',
-					storage,
-					storageKey: 'test-key',
+					storage: {adapter: storage, key: 'test-key'},
 					defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 					clock: () => clock,
-					sync: mockSyncAdapter,
+					sync: {adapter: mockSyncAdapter},
 				});
 
 				await store.load();
@@ -1133,12 +1092,10 @@ describe('createSyncableStore', () => {
 				const store = createSyncableStore({
 					schema,
 					account: '0x1234567890123456789012345678901234567890',
-					storage,
-					storageKey: 'test-key',
+					storage: {adapter: storage, key: 'test-key'},
 					defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 					clock: () => clock,
-					sync: mockSyncAdapter,
-					syncConfig: {debounceMs: 10},
+					sync: {adapter: mockSyncAdapter, options: {debounceMs: 10}},
 				});
 
 				await store.load();
@@ -1188,11 +1145,10 @@ describe('createSyncableStore', () => {
 				const store = createSyncableStore({
 					schema,
 					account: '0x1234567890123456789012345678901234567890',
-					storage,
-					storageKey: 'test-key',
+					storage: {adapter: storage, key: 'test-key'},
 					defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 					clock: () => clock,
-					sync: mockSyncAdapter,
+					sync: {adapter: mockSyncAdapter},
 				});
 
 				await store.load();
@@ -1218,7 +1174,7 @@ describe('createSyncableStore', () => {
 			}
 		});
 
-		it('can be disabled via syncConfig.syncOnReconnect = false', async () => {
+		it('can be disabled via sync.options.syncOnReconnect = false', async () => {
 			let pushCallCount = 0;
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
@@ -1245,12 +1201,10 @@ describe('createSyncableStore', () => {
 				const store = createSyncableStore({
 					schema,
 					account: '0x1234567890123456789012345678901234567890',
-					storage,
-					storageKey: 'test-key',
+					storage: {adapter: storage, key: 'test-key'},
 					defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 					clock: () => clock,
-					sync: mockSyncAdapter,
-					syncConfig: {syncOnReconnect: false}, // Disable
+					sync: {adapter: mockSyncAdapter, options: {syncOnReconnect: false}}, // Disable
 				});
 
 				await store.load();
@@ -1287,12 +1241,10 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				sync: mockSyncAdapter,
-				syncConfig: {intervalMs: 50}, // Very short interval for testing
+				sync: {adapter: mockSyncAdapter, options: {intervalMs: 50}}, // Very short interval for testing
 			});
 
 			await store.load();
@@ -1323,12 +1275,10 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				sync: mockSyncAdapter,
-				syncConfig: {intervalMs: 0}, // Disabled
+				sync: {adapter: mockSyncAdapter, options: {intervalMs: 0}}, // Disabled
 			});
 
 			await store.load();
@@ -1359,12 +1309,10 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				sync: mockSyncAdapter,
-				syncConfig: {intervalMs: 50},
+				sync: {adapter: mockSyncAdapter, options: {intervalMs: 50}},
 			});
 
 			await store.load();
@@ -1396,11 +1344,10 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				sync: mockSyncAdapter,
+				sync: {adapter: mockSyncAdapter},
 			});
 
 			await store.load();
@@ -1429,12 +1376,10 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				sync: mockSyncAdapter,
-				syncConfig: {debounceMs: 5000}, // Long debounce so sync doesn't complete
+				sync: {adapter: mockSyncAdapter, options: {debounceMs: 5000}}, // Long debounce so sync doesn't complete
 			});
 
 			await store.load();
@@ -1472,12 +1417,10 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				sync: mockSyncAdapter,
-				syncConfig: {debounceMs: 10}, // Short debounce
+				sync: {adapter: mockSyncAdapter, options: {debounceMs: 10}}, // Short debounce
 			});
 
 			await store.load();
@@ -1520,12 +1463,10 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				sync: mockSyncAdapter,
-				syncConfig: {debounceMs: 10},
+				sync: {adapter: mockSyncAdapter, options: {debounceMs: 10}},
 			});
 
 			await store.load();
@@ -1564,8 +1505,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -1584,8 +1524,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -1626,8 +1565,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				schemaVersion: 3, // Target version 3
@@ -1691,8 +1629,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				schemaVersion: 3, // Target version 3
@@ -1738,8 +1675,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				schemaVersion: 3,
@@ -1775,8 +1711,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'default-theme', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				schemaVersion: 3,
@@ -1811,8 +1746,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -1829,8 +1763,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -1850,8 +1783,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -1873,8 +1805,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -1896,8 +1827,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -1920,8 +1850,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -1947,8 +1876,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -1976,8 +1904,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -2008,8 +1935,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -2034,8 +1960,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -2058,8 +1983,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -2086,8 +2010,7 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -2139,10 +2062,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
+				sync: {adapter: mockAdapter},
 				clock: () => clock,
 			});
 
@@ -2188,10 +2110,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
+				sync: {adapter: mockAdapter},
 				clock: () => clock,
 			});
 
@@ -2240,10 +2161,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
+				sync: {adapter: mockAdapter},
 				clock: () => clock,
 			});
 
@@ -2267,11 +2187,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
-				syncConfig: {debounceMs: 10}, // Short debounce for testing
+				sync: {adapter: mockAdapter, options: {debounceMs: 10}}, // Short debounce for testing
 				clock: () => clock,
 			});
 
@@ -2304,11 +2222,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
-				syncConfig: {debounceMs: 10},
+				sync: {adapter: mockAdapter, options: {debounceMs: 10}},
 				clock: () => clock,
 			});
 
@@ -2346,11 +2262,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
-				syncConfig: {debounceMs: 10},
+				sync: {adapter: mockAdapter, options: {debounceMs: 10}},
 				clock: () => clock,
 			});
 
@@ -2385,11 +2299,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
-				syncConfig: {debounceMs: 10, maxRetries: 0}, // No retries for this test
+				sync: {adapter: mockAdapter, options: {debounceMs: 10, maxRetries: 0}}, // No retries for this test
 				clock: () => clock,
 			});
 
@@ -2416,27 +2328,28 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: {
-					async pull() {
-						return {success: true, data: null, counter: 0n};
-					},
-					async push() {
-						// Capture sync status during push
-						let syncStatus: SyncStatus | undefined;
-						store.syncStatus$.subscribe((s) => (syncStatus = s))();
-						isSyncingWhilePushing = syncStatus?.isSyncing;
-						syncDisplayStateWhilePushing = syncStatus?.displayState;
+					adapter: {
+						async pull() {
+							return {success: true, data: null, counter: 0n};
+						},
+						async push() {
+							// Capture sync status during push
+							let syncStatus: SyncStatus | undefined;
+							store.syncStatus$.subscribe((s) => (syncStatus = s))();
+							isSyncingWhilePushing = syncStatus?.isSyncing;
+							syncDisplayStateWhilePushing = syncStatus?.displayState;
 
-						await new Promise<void>((resolve) => {
-							pushResolve = resolve;
-						});
-						return {success: true};
+							await new Promise<void>((resolve) => {
+								pushResolve = resolve;
+							});
+							return {success: true};
+						},
 					},
+					options: {debounceMs: 10},
 				},
-				syncConfig: {debounceMs: 10},
 				clock: () => clock,
 			});
 
@@ -2473,11 +2386,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
-				syncConfig: {debounceMs: 10, maxRetries: 0}, // No retries for this test
+				sync: {adapter: mockAdapter, options: {debounceMs: 10, maxRetries: 0}}, // No retries for this test
 				clock: () => clock,
 			});
 
@@ -2508,11 +2419,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
-				syncConfig: {debounceMs: 10},
+				sync: {adapter: mockAdapter, options: {debounceMs: 10}},
 				clock: () => clock,
 			});
 
@@ -2561,11 +2470,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
-				syncConfig: {debounceMs: 50},
+				sync: {adapter: mockAdapter, options: {debounceMs: 50}},
 				clock: () => clock,
 			});
 
@@ -2613,11 +2520,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
-				syncConfig: {debounceMs: 10, maxRetries: 3, retryBackoffMs: 10},
+				sync: {adapter: mockAdapter, options: {debounceMs: 10, maxRetries: 3, retryBackoffMs: 10}},
 				clock: () => clock,
 			});
 
@@ -2648,11 +2553,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
-				syncConfig: {debounceMs: 10, maxRetries: 2, retryBackoffMs: 10},
+				sync: {adapter: mockAdapter, options: {debounceMs: 10, maxRetries: 2, retryBackoffMs: 10}},
 				clock: () => clock,
 			});
 
@@ -2694,11 +2597,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
-				syncConfig: {debounceMs: 10, maxRetries: 3, retryBackoffMs: 20},
+				sync: {adapter: mockAdapter, options: {debounceMs: 10, maxRetries: 3, retryBackoffMs: 20}},
 				clock: () => clock,
 			});
 
@@ -2741,11 +2642,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
-				syncConfig: {debounceMs: 100}, // Long debounce
+				sync: {adapter: mockAdapter, options: {debounceMs: 100}}, // Long debounce
 				clock: () => clock,
 			});
 
@@ -2796,11 +2695,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: trackingStorage,
-				storageKey: 'test-key',
+				storage: {adapter: trackingStorage, key: 'test-key', options: {debounceMs: 50}},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				syncConfig: {storageDebounceMs: 50},
 			});
 
 			await store.load();
@@ -2844,11 +2741,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: trackingStorage,
-				storageKey: 'test-key',
+				storage: {adapter: trackingStorage, key: 'test-key', options: {debounceMs: 50}},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				syncConfig: {storageDebounceMs: 50},
 			});
 
 			await store.load();
@@ -2894,11 +2789,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: slowStorage,
-				storageKey: 'test-key',
+				storage: {adapter: slowStorage, key: 'test-key', options: {debounceMs: 0}},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				syncConfig: {storageDebounceMs: 0}, // No debounce for this test
 			});
 
 			await store.load();
@@ -2954,11 +2847,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: trackingStorage,
-				storageKey: 'test-key',
+				storage: {adapter: trackingStorage, key: 'test-key', options: {debounceMs: 1000}},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				syncConfig: {storageDebounceMs: 1000}, // Long debounce
 			});
 
 			await store.load();
@@ -2997,11 +2888,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: trackingStorage,
-				storageKey: 'test-key',
+				storage: {adapter: trackingStorage, key: 'test-key', options: {debounceMs: 500}},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				syncConfig: {storageDebounceMs: 500},
 			});
 
 			await store.load();
@@ -3039,11 +2928,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: trackingStorage,
-				storageKey: 'test-key',
+				storage: {adapter: trackingStorage, key: 'test-key', options: {debounceMs: 1000}},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				syncConfig: {storageDebounceMs: 1000},
 			});
 
 			await store.load();
@@ -3098,11 +2985,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
-				syncConfig: {debounceMs: 0},
+				sync: {adapter: mockAdapter, options: {debounceMs: 0}},
 				clock: () => clock,
 			});
 
@@ -3140,11 +3025,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage,
-				storageKey: 'test-key',
+				storage: {adapter: storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: mockAdapter,
-				syncConfig: {debounceMs: 0},
+				sync: {adapter: mockAdapter, options: {debounceMs: 0}},
 				clock: () => clock,
 			});
 
@@ -3200,11 +3083,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: trackingStorage,
-				storageKey: 'test-key',
+				storage: {adapter: trackingStorage, key: 'test-key', options: {debounceMs: 500}},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				syncConfig: {storageDebounceMs: 500},
 			});
 
 			await store.load();
@@ -3242,11 +3123,9 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: trackingStorage,
-				storageKey: 'test-key',
+				storage: {adapter: trackingStorage, key: 'test-key', options: {debounceMs: 10000}},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
-				syncConfig: {storageDebounceMs: 10000},
 			});
 
 			await store.load();

@@ -6,8 +6,8 @@
  * - Map: Key-value collection with per-item timestamps and deleteAt
  */
 
-import {AsyncStorage} from '../storage/types.js';
-import {StoreEventsWithSync, SyncAdapter, SyncConfig, SyncStatus} from '../sync/types.js';
+import {StorageConfig} from '../storage/types.js';
+import {StoreEventsWithSync, SyncConfig, SyncStatus} from '../sync/types.js';
 
 // ============================================================================
 // Field Type Markers
@@ -293,11 +293,8 @@ export interface SyncableStoreConfig<S extends Schema> {
 	/** Static account address - store is bound to this account */
 	account: `0x${string}`;
 
-	/** Local storage adapter */
-	storage: AsyncStorage<InternalStorage<S>>;
-
-	/** Storage key - direct string */
-	storageKey: string;
+	/** Storage configuration: adapter, key, and options */
+	storage: StorageConfig<InternalStorage<S>>;
 
 	/** Default data factory */
 	defaultData: () => DataOf<S>;
@@ -308,11 +305,8 @@ export interface SyncableStoreConfig<S extends Schema> {
 	/** Schema version for migrations */
 	schemaVersion?: number;
 
-	/** Optional: Server sync adapter */
-	sync?: SyncAdapter<S>;
-
-	/** Optional: Sync configuration */
-	syncConfig?: SyncConfig;
+	/** Optional: Sync configuration: adapter and options */
+	sync?: SyncConfig<S>;
 
 	/** Migration functions keyed by target version */
 	migrations?: Record<number, (oldData: unknown) => InternalStorage<S>>;

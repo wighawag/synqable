@@ -1,13 +1,27 @@
 import {DataOf, InternalStorage, Schema} from '../main/types.js';
-import {AsyncStorage} from '../storage/types.js';
-import {SyncAdapter, SyncConfig} from '../sync/types.js';
+import {AsyncStorage, StorageOptions} from '../storage/types.js';
+import {SyncConfig} from '../sync/types.js';
+
+/**
+ * Storage configuration for factory - uses a key generator function.
+ */
+export interface FactoryStorageConfig<T> {
+	/** Storage adapter */
+	adapter: AsyncStorage<T>;
+
+	/** Function to generate storage key from account address */
+	key: (account: `0x${string}`) => string;
+
+	/** Storage options */
+	options?: StorageOptions;
+}
 
 export interface SyncableStoreFactoryConfig<S extends Schema> {
 	/** Schema definition */
 	schema: S;
 
-	/** Local storage adapter */
-	storage: AsyncStorage<InternalStorage<S>>;
+	/** Storage configuration: adapter, key generator, and options */
+	storage: FactoryStorageConfig<InternalStorage<S>>;
 
 	/** Default data factory */
 	defaultData: () => DataOf<S>;
@@ -18,14 +32,8 @@ export interface SyncableStoreFactoryConfig<S extends Schema> {
 	/** Schema version for migrations */
 	schemaVersion?: number;
 
-	/** Function to generate storage key from account address */
-	storagKey: (account: `0x${string}`) => string;
-
-	/** Optional: Server sync adapter */
-	sync?: SyncAdapter<S>;
-
-	/** Optional: Sync configuration */
-	syncConfig?: SyncConfig;
+	/** Optional: Sync configuration: adapter and options */
+	sync?: SyncConfig<S>;
 
 	/** Migration functions keyed by target version */
 	migrations?: Record<number, (oldData: unknown) => InternalStorage<S>>;

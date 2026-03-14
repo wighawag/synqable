@@ -1,4 +1,26 @@
 /**
+ * Storage configuration options.
+ */
+export interface StorageOptions {
+	/** Debounce delay for local storage saves (default: 100ms) */
+	debounceMs?: number;
+}
+
+/**
+ * Combined storage configuration with adapter, key, and options.
+ */
+export interface StorageConfig<T> {
+	/** Storage adapter */
+	adapter: AsyncStorage<T>;
+
+	/** Storage key for this store instance */
+	key: string;
+
+	/** Storage options */
+	options?: StorageOptions;
+}
+
+/**
  * Generic async storage interface for key-value persistence.
  * All operations are async to support various backends.
  */

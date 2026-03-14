@@ -7,9 +7,18 @@ export function createSyncableStoreFactory<S extends Schema>(
 ) {
 	return (account: `0x${string}`) => {
 		return createSyncableStore({
-			...config,
+			schema: config.schema,
 			account,
-			storageKey: config.storagKey(account),
+			storage: {
+				adapter: config.storage.adapter,
+				key: config.storage.key(account),
+				options: config.storage.options,
+			},
+			defaultData: config.defaultData,
+			clock: config.clock,
+			schemaVersion: config.schemaVersion,
+			sync: config.sync,
+			migrations: config.migrations,
 		});
 	};
 }

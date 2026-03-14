@@ -35,21 +35,27 @@ export function createSyncableStore<S extends Schema>(
 	const {
 		schema,
 		account,
-		storage,
-		storageKey,
+		storage: storageConfig,
 		defaultData,
 		clock = Date.now,
 		schemaVersion = 1,
-		sync: syncAdapter,
-		syncConfig,
+		sync: syncConfig,
 		migrations,
 	} = config;
 
+	// Extract storage components
+	const storageAdapter = storageConfig.adapter;
+	const storageKey = storageConfig.key;
+	const storageDebounceMs = storageConfig.options?.debounceMs ?? 100;
+
+	// Extract sync components
+	const syncAdapter = syncConfig?.adapter;
+	const syncOptions = syncConfig?.options;
+
 	// Sync configuration with defaults
-	const debounceMs = syncConfig?.debounceMs ?? 1000;
-	const storageDebounceMs = syncConfig?.storageDebounceMs ?? 100;
-	const maxRetries = syncConfig?.maxRetries ?? 3;
-	const retryBackoffMs = syncConfig?.retryBackoffMs ?? 1000;
+	const debounceMs = syncOptions?.debounceMs ?? 1000;
+	const maxRetries = syncOptions?.maxRetries ?? 3;
+	const retryBackoffMs = syncOptions?.retryBackoffMs ?? 1000;
 
 	// State
 	let asyncState: AsyncState<DataOf<S>> = {status: 'idle', account: undefined};
@@ -338,7 +344,7 @@ export function createSyncableStore<S extends Schema>(
 		try {
 			// Use internalStorage reference directly - always has latest state
 			if (internalStorage) {
-				await storage.save(storageKey, internalStorage);
+				await storageAdapter.save(storageKey, internalStorage);
 				mutableStorageStatus.lastSavedAt = clock();
 				mutableStorageStatus.storageError = null;
 			}
@@ -362,8 +368,8 @@ export function createSyncableStore<S extends Schema>(
 	}
 
 	function setupStorageWatch(): void {
-		if (isWatchable(storage)) {
-			unwatchStorage = storage.watch(storageKey, async (_, newValue) => {
+		if (isWatchable(storageAdapter)) {
+			unwatchStorage = storageAdapter.watch(storageKey, async (_, newValue) => {
 				if (!newValue || !internalStorage) return;
 
 				const {storage: cleanedMerged, changes} = mergeAndCleanup(
@@ -392,7 +398,7 @@ export function createSyncableStore<S extends Schema>(
 	}
 
 	function setupGlobalListeners(): void {
-		if (syncConfig?.syncOnVisible !== false && typeof document !== 'undefined') {
+		if (syncOptions?.syncOnVisible !== false && typeof document !== 'undefined') {
 			handleVisibilityChange = () => {
 				if (document.visibilityState === 'visible' && asyncState.status === 'ready') {
 					performSync();
@@ -401,7 +407,7 @@ export function createSyncableStore<S extends Schema>(
 			document.addEventListener('visibilitychange', handleVisibilityChange);
 		}
 
-		if (syncConfig?.syncOnReconnect !== false && typeof window !== 'undefined') {
+		if (syncOptions?.syncOnReconnect !== false && typeof window !== 'undefined') {
 			handleOnline = () => {
 				mutableSyncStatus.isOnline = true;
 				emitSyncEvent({type: 'online'});
@@ -417,7 +423,7 @@ export function createSyncableStore<S extends Schema>(
 			window.addEventListener('offline', handleOffline);
 		}
 
-		const intervalMs = syncConfig?.intervalMs;
+		const intervalMs = syncOptions?.intervalMs;
 		if (syncAdapter && intervalMs && intervalMs > 0) {
 			syncIntervalTimer = setInterval(() => {
 				if (asyncState.status === 'ready') {
@@ -448,7 +454,7 @@ export function createSyncableStore<S extends Schema>(
 		asyncState = {status: 'loading', account};
 		emitStateEvent({type: 'loading'});
 
-		const localData = await storage.load(storageKey);
+		const localData = await storageAdapter.load(storageKey);
 
 		if (localData) {
 			const storedVersion = localData.$version ?? 0;
