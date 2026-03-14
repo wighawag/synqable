@@ -4,7 +4,7 @@
  * Removes expired items and tombstones from the store.
  */
 
-import type { Schema, InternalStorage, DataOf, StoreChange } from './types.js';
+import type {Schema, InternalStorage, DataOf, StoreChange} from './types.js';
 
 /**
  * Result of cleanup operation.
@@ -34,8 +34,8 @@ export function cleanup<S extends Schema>(
 
 	const result: InternalStorage<S> = {
 		$version: storage.$version,
-		data: { ...storage.data } as DataOf<S>,
-		$timestamps: { ...storage.$timestamps },
+		data: {...storage.data} as DataOf<S>,
+		$timestamps: {...storage.$timestamps},
 		$itemTimestamps: {} as InternalStorage<S>['$itemTimestamps'],
 		$tombstones: {} as InternalStorage<S>['$tombstones'],
 	};
@@ -62,7 +62,7 @@ export function cleanup<S extends Schema>(
 			// Copy and filter items
 			const items = ((storage.data as Record<string, unknown>)[field] ?? {}) as Record<
 				string,
-				{ deleteAt: number }
+				{deleteAt: number}
 			>;
 			const timestamps =
 				(storage.$itemTimestamps as Record<string, Record<string, number>>)[field] ?? {};
@@ -79,17 +79,16 @@ export function cleanup<S extends Schema>(
 					// Item expired - emit :removed change
 					changes.push({
 						event: `${field}:removed`,
-						data: { key, item },
+						data: {key, item},
 					});
 				}
 			}
 
 			(result.data as Record<string, unknown>)[field] = cleanedItems;
-			(result.$itemTimestamps as Record<string, Record<string, number>>)[field] =
-				cleanedTimestamps;
+			(result.$itemTimestamps as Record<string, Record<string, number>>)[field] = cleanedTimestamps;
 		}
 		// Permanent fields are never cleaned up
 	}
 
-	return { storage: result, changes, tombstonesDeleted };
+	return {storage: result, changes, tombstonesDeleted};
 }

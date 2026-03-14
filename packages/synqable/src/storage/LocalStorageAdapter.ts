@@ -1,4 +1,4 @@
-import type { WatchableStorage, StorageChangeCallback } from './types.js';
+import type {WatchableStorage, StorageChangeCallback} from './types.js';
 
 export interface LocalStorageAdapterOptions<T> {
 	/** Optional serializer, defaults to JSON.stringify */

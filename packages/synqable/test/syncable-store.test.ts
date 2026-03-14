@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {describe, it, expect, vi, beforeEach} from 'vitest';
 import {
 	createSyncableStore,
 	defineSchema,
@@ -17,8 +17,8 @@ import {
 
 // Test schema with volume for more complex testing
 const schema = defineSchema({
-	settings: permanent<{ theme: string; volume: number }>(),
-	operations: map<{ tx: string; status: string }>(),
+	settings: permanent<{theme: string; volume: number}>(),
+	operations: map<{tx: string; status: string}>(),
 });
 
 type TestSchema = typeof schema;
@@ -53,12 +53,12 @@ function createMockSyncAdapter(options?: {
 		data: InternalStorage<TestSchema>,
 		counter: bigint,
 	) => Promise<PushResponse>;
-	pullCount?: { value: number };
-	pushCount?: { value: number };
+	pullCount?: {value: number};
+	pushCount?: {value: number};
 }): SyncAdapter<TestSchema> {
 	const {
-		onPull = async () => ({ success: true as const, data: null, counter: 0n }),
-		onPush = async () => ({ success: true as const }),
+		onPull = async () => ({success: true as const, data: null, counter: 0n}),
+		onPush = async () => ({success: true as const}),
 		pullCount,
 		pushCount,
 	} = options ?? {};
@@ -90,7 +90,7 @@ describe('createSyncableStore', () => {
 			account: '0x1234567890123456789012345678901234567890',
 			storage,
 			storageKey: 'test-key',
-			defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
 
@@ -103,7 +103,7 @@ describe('createSyncableStore', () => {
 			account: '0x1234567890123456789012345678901234567890',
 			storage,
 			storageKey: 'test-key',
-			defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
 
@@ -119,7 +119,7 @@ describe('createSyncableStore', () => {
 			account: '0x1234567890123456789012345678901234567890',
 			storage,
 			storageKey: 'test-key',
-			defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
 
@@ -132,12 +132,12 @@ describe('createSyncableStore', () => {
 			account: '0x1234567890123456789012345678901234567890',
 			storage,
 			storageKey: 'test-key',
-			defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
 
 		await store.load();
-		store.set('settings', { theme: 'light', volume: 0.8 });
+		store.set('settings', {theme: 'light', volume: 0.8});
 
 		if (store.state.status === 'ready') {
 			expect(store.state.data.settings.theme).toBe('light');
@@ -153,12 +153,12 @@ describe('createSyncableStore', () => {
 			account: '0x1234567890123456789012345678901234567890',
 			storage,
 			storageKey: 'test-key',
-			defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
 
 		await store.load();
-		store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+		store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 		if (store.state.status === 'ready') {
 			expect(store.state.data.operations['op-1']).toBeDefined();
@@ -176,14 +176,14 @@ describe('createSyncableStore', () => {
 			account: '0x1234567890123456789012345678901234567890',
 			storage,
 			storageKey: 'test-key',
-			defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
 
 		await store.load();
-		store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+		store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 		clock = 2000; // Advance clock
-		store.update('operations', 'op-1', { tx: '0xabc', status: 'confirmed' });
+		store.update('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
 		if (store.state.status === 'ready') {
 			expect(store.state.data.operations['op-1'].status).toBe('confirmed');
@@ -200,12 +200,12 @@ describe('createSyncableStore', () => {
 			account: '0x1234567890123456789012345678901234567890',
 			storage,
 			storageKey: 'test-key',
-			defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
 
 		await store.load();
-		store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+		store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 		store.remove('operations', 'op-1');
 
 		if (store.state.status === 'ready') {
@@ -221,7 +221,7 @@ describe('createSyncableStore', () => {
 			account: '0x1234567890123456789012345678901234567890',
 			storage,
 			storageKey: 'test-key',
-			defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
 
@@ -238,14 +238,14 @@ describe('createSyncableStore', () => {
 			account: '0x1234567890123456789012345678901234567890',
 			storage,
 			storageKey: 'test-key',
-			defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
 
 		await store.load();
 
 		expect(() => {
-			store.update('operations', 'non-existent', { tx: '0x', status: 'test' });
+			store.update('operations', 'non-existent', {tx: '0x', status: 'test'});
 		}).toThrow('Item non-existent does not exist in operations');
 	});
 
@@ -255,12 +255,12 @@ describe('createSyncableStore', () => {
 			account: '0x1234567890123456789012345678901234567890',
 			storage,
 			storageKey: 'test-key',
-			defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
 
 		expect(() => {
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 		}).toThrow('Store is not ready');
 	});
 
@@ -270,12 +270,12 @@ describe('createSyncableStore', () => {
 			account: '0x1234567890123456789012345678901234567890',
 			storage,
 			storageKey: 'test-key',
-			defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
 
 		await store.load();
-		store.set('settings', { theme: 'light', volume: 0.9 });
+		store.set('settings', {theme: 'light', volume: 0.9});
 		await store.flush();
 
 		// Check storage
@@ -289,14 +289,14 @@ describe('createSyncableStore', () => {
 		storage.data.set('test-key', {
 			$version: 1,
 			data: {
-				settings: { theme: 'custom', volume: 0.3 },
+				settings: {theme: 'custom', volume: 0.3},
 				operations: {
-					'existing-op': { tx: '0xdef', status: 'confirmed', deleteAt: 99999 },
+					'existing-op': {tx: '0xdef', status: 'confirmed', deleteAt: 99999},
 				},
 			},
-			$timestamps: { settings: 500 },
-			$itemTimestamps: { operations: { 'existing-op': 400 } },
-			$tombstones: { operations: {} },
+			$timestamps: {settings: 500},
+			$itemTimestamps: {operations: {'existing-op': 400}},
+			$tombstones: {operations: {}},
 		});
 
 		const store = createSyncableStore({
@@ -304,7 +304,7 @@ describe('createSyncableStore', () => {
 			account: '0x1234567890123456789012345678901234567890',
 			storage,
 			storageKey: 'test-key',
-			defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
 
@@ -324,7 +324,7 @@ describe('createSyncableStore', () => {
 			account: '0x1234567890123456789012345678901234567890',
 			storage,
 			storageKey: 'test-key',
-			defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+			defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 			clock: () => clock,
 		});
 
@@ -341,20 +341,20 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
-			let receivedValue: { theme: string; volume: number } | undefined;
+			let receivedValue: {theme: string; volume: number} | undefined;
 			store.on('settings:changed', (value) => {
 				receivedValue = value;
 			});
 
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 
-			expect(receivedValue).toEqual({ theme: 'light', volume: 0.9 });
+			expect(receivedValue).toEqual({theme: 'light', volume: 0.9});
 		});
 
 		it('emits operations:added event when item is added', async () => {
@@ -363,20 +363,20 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
 			let receivedEvent:
-				| { key: string; item: { tx: string; status: string; deleteAt: number } }
+				| {key: string; item: {tx: string; status: string; deleteAt: number}}
 				| undefined;
 			store.on('operations:added', (event) => {
 				receivedEvent = event;
 			});
 
-			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			expect(receivedEvent?.key).toBe('op-1');
 			expect(receivedEvent?.item.tx).toBe('0xabc');
@@ -389,22 +389,22 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
-			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let receivedEvent:
-				| { key: string; item: { tx: string; status: string; deleteAt: number } }
+				| {key: string; item: {tx: string; status: string; deleteAt: number}}
 				| undefined;
 			store.on('operations:updated', (event) => {
 				receivedEvent = event;
 			});
 
-			store.update('operations', 'op-1', { tx: '0xabc', status: 'confirmed' });
+			store.update('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
 			expect(receivedEvent?.key).toBe('op-1');
 			expect(receivedEvent?.item.status).toBe('confirmed');
@@ -416,16 +416,16 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
-			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let receivedEvent:
-				| { key: string; item: { tx: string; status: string; deleteAt: number } }
+				| {key: string; item: {tx: string; status: string; deleteAt: number}}
 				| undefined;
 			store.on('operations:removed', (event) => {
 				receivedEvent = event;
@@ -442,7 +442,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -461,18 +461,18 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
-			let receivedValue: { theme: string; volume: number } | undefined;
+			let receivedValue: {theme: string; volume: number} | undefined;
 			store.on('settings:changed', (value) => {
 				receivedValue = value;
 			});
 
-			store.patch('settings', { volume: 0.9 });
+			store.patch('settings', {volume: 0.9});
 
 			expect(receivedValue?.volume).toBe(0.9);
 			expect(receivedValue?.theme).toBe('dark'); // original value preserved
@@ -486,7 +486,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -504,17 +504,17 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
 			// Add an item first
-			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Get item store and subscribe
-			let itemValue: { tx: string; status: string; deleteAt: number } | undefined;
+			let itemValue: {tx: string; status: string; deleteAt: number} | undefined;
 			const itemStore = store.watchItem('operations', 'op-1');
 			itemStore.subscribe((v) => (itemValue = v));
 
@@ -530,14 +530,14 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
 			// Subscribe to item store BEFORE adding item
-			let itemValue: { tx: string; status: string; deleteAt: number } | undefined;
+			let itemValue: {tx: string; status: string; deleteAt: number} | undefined;
 			const itemStore = store.watchItem('operations', 'op-1');
 			itemStore.subscribe((v) => (itemValue = v));
 
@@ -545,7 +545,7 @@ describe('createSyncableStore', () => {
 			expect(itemValue).toBeUndefined();
 
 			// Add the item
-			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Should be updated
 			expect(itemValue).toBeDefined();
@@ -558,17 +558,17 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
 			// Add an item first
-			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Subscribe to item store
-			let itemValue: { tx: string; status: string; deleteAt: number } | undefined;
+			let itemValue: {tx: string; status: string; deleteAt: number} | undefined;
 			const itemStore = store.watchItem('operations', 'op-1');
 			itemStore.subscribe((v) => (itemValue = v));
 
@@ -576,7 +576,7 @@ describe('createSyncableStore', () => {
 
 			// Update the item
 			clock = 2000;
-			store.update('operations', 'op-1', { tx: '0xabc', status: 'confirmed' });
+			store.update('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
 			// Should be updated
 			expect(itemValue?.status).toBe('confirmed');
@@ -588,17 +588,17 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
 			// Add an item first
-			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Subscribe to item store
-			let itemValue: { tx: string; status: string; deleteAt: number } | undefined;
+			let itemValue: {tx: string; status: string; deleteAt: number} | undefined;
 			const itemStore = store.watchItem('operations', 'op-1');
 			itemStore.subscribe((v) => (itemValue = v));
 
@@ -617,7 +617,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -643,7 +643,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -663,7 +663,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -685,11 +685,11 @@ describe('createSyncableStore', () => {
 
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
 					await pushPromise;
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -698,10 +698,10 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				sync: mockSyncAdapter,
-				syncConfig: { debounceMs: 10 },
+				syncConfig: {debounceMs: 10},
 			});
 
 			await store.load();
@@ -713,7 +713,7 @@ describe('createSyncableStore', () => {
 			});
 
 			// Trigger sync by making a change
-			store.set('settings', { theme: 'light', volume: 0.8 });
+			store.set('settings', {theme: 'light', volume: 0.8});
 
 			// Wait for sync to start
 			await new Promise((r) => setTimeout(r, 50));
@@ -761,8 +761,9 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage: slowStorage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
+				syncConfig: {storageDebounceMs: 0}, // Disable debounce for immediate saves
 			});
 
 			await store.load();
@@ -774,7 +775,7 @@ describe('createSyncableStore', () => {
 			});
 
 			// Trigger storage save by making a change
-			store.set('settings', { theme: 'light', volume: 0.8 });
+			store.set('settings', {theme: 'light', volume: 0.8});
 
 			// Give it time to start saving
 			await new Promise((r) => setTimeout(r, 10));
@@ -798,7 +799,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -844,14 +845,15 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage: slowStorage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
+				syncConfig: {storageDebounceMs: 0}, // Disable debounce for immediate saves
 			});
 
 			await store.load();
 
 			// Trigger a save - this will be the first save and will be slow
-			store.set('settings', { theme: 'light', volume: 0.8 });
+			store.set('settings', {theme: 'light', volume: 0.8});
 
 			// Wait a moment for the save to start
 			await new Promise((r) => setTimeout(r, 10));
@@ -888,7 +890,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -901,10 +903,10 @@ describe('createSyncableStore', () => {
 		it('handles not-ready state gracefully', async () => {
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -913,7 +915,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				sync: mockSyncAdapter,
 			});
@@ -931,14 +933,14 @@ describe('createSyncableStore', () => {
 
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
 					pushCallCount++;
 					await new Promise<void>((resolve) => {
 						pushResolve = resolve;
 					});
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -947,17 +949,17 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				sync: mockSyncAdapter,
-				syncConfig: { debounceMs: 5000 }, // Long debounce
+				syncConfig: {debounceMs: 5000}, // Long debounce
 			});
 
 			await store.load();
 			pushCallCount = 0; // Reset after initial sync
 
 			// Make a change (this would normally start a 5 second debounce)
-			store.set('settings', { theme: 'light', volume: 0.8 });
+			store.set('settings', {theme: 'light', volume: 0.8});
 
 			// Sync hasn't started yet (debounce not elapsed)
 			expect(pushCallCount).toBe(0);
@@ -981,12 +983,12 @@ describe('createSyncableStore', () => {
 		it('can be disabled via syncConfig.syncOnVisible = false', async () => {
 			let pullCallCount = 0;
 			const mockSyncAdapter = {
-				async pull() {
+				async pull(): Promise<PullResponse<TestSchema>> {
 					pullCallCount++;
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -995,7 +997,7 @@ describe('createSyncableStore', () => {
 			let visibilityHandler: (() => void) | undefined;
 			const originalDocument = globalThis.document;
 
-			(globalThis as unknown as { document: unknown }).document = {
+			(globalThis as unknown as {document: unknown}).document = {
 				get visibilityState() {
 					return visibilityState;
 				},
@@ -1013,10 +1015,10 @@ describe('createSyncableStore', () => {
 					account: '0x1234567890123456789012345678901234567890',
 					storage,
 					storageKey: 'test-key',
-					defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+					defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 					clock: () => clock,
 					sync: mockSyncAdapter,
-					syncConfig: { syncOnVisible: false }, // Disable syncOnVisible
+					syncConfig: {syncOnVisible: false}, // Disable syncOnVisible
 				});
 
 				await store.load();
@@ -1041,12 +1043,12 @@ describe('createSyncableStore', () => {
 		it('triggers pull when tab becomes visible', async () => {
 			let pullCallCount = 0;
 			const mockSyncAdapter = {
-				async pull() {
+				async pull(): Promise<PullResponse<TestSchema>> {
 					pullCallCount++;
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -1055,7 +1057,7 @@ describe('createSyncableStore', () => {
 			let visibilityHandler: (() => void) | undefined;
 			const originalDocument = globalThis.document;
 
-			(globalThis as unknown as { document: unknown }).document = {
+			(globalThis as unknown as {document: unknown}).document = {
 				get visibilityState() {
 					return visibilityState;
 				},
@@ -1073,7 +1075,7 @@ describe('createSyncableStore', () => {
 					account: '0x1234567890123456789012345678901234567890',
 					storage,
 					storageKey: 'test-key',
-					defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+					defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 					clock: () => clock,
 					sync: mockSyncAdapter,
 				});
@@ -1105,12 +1107,12 @@ describe('createSyncableStore', () => {
 		it('triggers push sync when coming back online', async () => {
 			let pushCallCount = 0;
 			const mockSyncAdapter = {
-				async pull() {
-					return { success: true, data: null, counter: 0n };
+				async pull(): Promise<PullResponse<TestSchema>> {
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
 					pushCallCount++;
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -1119,7 +1121,7 @@ describe('createSyncableStore', () => {
 			let offlineHandler: (() => void) | undefined;
 			const originalWindow = globalThis.window;
 
-			(globalThis as unknown as { window: unknown }).window = {
+			(globalThis as unknown as {window: unknown}).window = {
 				addEventListener(event: string, handler: () => void) {
 					if (event === 'online') onlineHandler = handler;
 					if (event === 'offline') offlineHandler = handler;
@@ -1133,16 +1135,16 @@ describe('createSyncableStore', () => {
 					account: '0x1234567890123456789012345678901234567890',
 					storage,
 					storageKey: 'test-key',
-					defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+					defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 					clock: () => clock,
 					sync: mockSyncAdapter,
-					syncConfig: { debounceMs: 10 },
+					syncConfig: {debounceMs: 10},
 				});
 
 				await store.load();
 
 				// Make a local change so there's data to push
-				store.set('settings', { theme: 'custom', volume: 0.9 });
+				store.set('settings', {theme: 'custom', volume: 0.9});
 
 				const initialPushCount = pushCallCount;
 
@@ -1163,11 +1165,11 @@ describe('createSyncableStore', () => {
 
 		it('updates syncState to offline when going offline', async () => {
 			const mockSyncAdapter = {
-				async pull() {
-					return { success: true, data: null, counter: 0n };
+				async pull(): Promise<PullResponse<TestSchema>> {
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -1175,7 +1177,7 @@ describe('createSyncableStore', () => {
 			let offlineHandler: (() => void) | undefined;
 			const originalWindow = globalThis.window;
 
-			(globalThis as unknown as { window: unknown }).window = {
+			(globalThis as unknown as {window: unknown}).window = {
 				addEventListener(event: string, handler: () => void) {
 					if (event === 'offline') offlineHandler = handler;
 				},
@@ -1188,7 +1190,7 @@ describe('createSyncableStore', () => {
 					account: '0x1234567890123456789012345678901234567890',
 					storage,
 					storageKey: 'test-key',
-					defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+					defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 					clock: () => clock,
 					sync: mockSyncAdapter,
 				});
@@ -1219,12 +1221,12 @@ describe('createSyncableStore', () => {
 		it('can be disabled via syncConfig.syncOnReconnect = false', async () => {
 			let pushCallCount = 0;
 			const mockSyncAdapter = {
-				async pull() {
-					return { success: true, data: null, counter: 0n };
+				async pull(): Promise<PullResponse<TestSchema>> {
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
 					pushCallCount++;
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -1232,7 +1234,7 @@ describe('createSyncableStore', () => {
 			let onlineHandler: (() => void) | undefined;
 			const originalWindow = globalThis.window;
 
-			(globalThis as unknown as { window: unknown }).window = {
+			(globalThis as unknown as {window: unknown}).window = {
 				addEventListener(event: string, handler: () => void) {
 					if (event === 'online') onlineHandler = handler;
 				},
@@ -1245,10 +1247,10 @@ describe('createSyncableStore', () => {
 					account: '0x1234567890123456789012345678901234567890',
 					storage,
 					storageKey: 'test-key',
-					defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+					defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 					clock: () => clock,
 					sync: mockSyncAdapter,
-					syncConfig: { syncOnReconnect: false }, // Disable
+					syncConfig: {syncOnReconnect: false}, // Disable
 				});
 
 				await store.load();
@@ -1273,12 +1275,12 @@ describe('createSyncableStore', () => {
 		it('triggers periodic pull at configured interval', async () => {
 			let pullCallCount = 0;
 			const mockSyncAdapter = {
-				async pull() {
+				async pull(): Promise<PullResponse<TestSchema>> {
 					pullCallCount++;
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -1287,10 +1289,10 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				sync: mockSyncAdapter,
-				syncConfig: { intervalMs: 50 }, // Very short interval for testing
+				syncConfig: {intervalMs: 50}, // Very short interval for testing
 			});
 
 			await store.load();
@@ -1309,12 +1311,12 @@ describe('createSyncableStore', () => {
 		it('respects 0 to disable periodic sync', async () => {
 			let pullCallCount = 0;
 			const mockSyncAdapter = {
-				async pull() {
+				async pull(): Promise<PullResponse<TestSchema>> {
 					pullCallCount++;
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -1323,10 +1325,10 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				sync: mockSyncAdapter,
-				syncConfig: { intervalMs: 0 }, // Disabled
+				syncConfig: {intervalMs: 0}, // Disabled
 			});
 
 			await store.load();
@@ -1345,12 +1347,12 @@ describe('createSyncableStore', () => {
 		it('cleans up interval timer on stop', async () => {
 			let pullCallCount = 0;
 			const mockSyncAdapter = {
-				async pull() {
+				async pull(): Promise<PullResponse<TestSchema>> {
 					pullCallCount++;
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -1359,10 +1361,10 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				sync: mockSyncAdapter,
-				syncConfig: { intervalMs: 50 },
+				syncConfig: {intervalMs: 50},
 			});
 
 			await store.load();
@@ -1384,10 +1386,10 @@ describe('createSyncableStore', () => {
 		it('is false when no changes have been made', async () => {
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -1396,7 +1398,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				sync: mockSyncAdapter,
 			});
@@ -1414,13 +1416,13 @@ describe('createSyncableStore', () => {
 			let pushResolve: (() => void) | undefined;
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
 					await new Promise<void>((resolve) => {
 						pushResolve = resolve;
 					});
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -1429,10 +1431,10 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				sync: mockSyncAdapter,
-				syncConfig: { debounceMs: 5000 }, // Long debounce so sync doesn't complete
+				syncConfig: {debounceMs: 5000}, // Long debounce so sync doesn't complete
 			});
 
 			await store.load();
@@ -1447,7 +1449,7 @@ describe('createSyncableStore', () => {
 			expect(syncStatusValue?.hasPendingSync).toBe(false);
 
 			// Make a change
-			store.set('settings', { theme: 'light', volume: 0.8 });
+			store.set('settings', {theme: 'light', volume: 0.8});
 
 			// Should now be true - we have pending changes
 			expect(syncStatusValue?.hasPendingSync).toBe(true);
@@ -1457,13 +1459,13 @@ describe('createSyncableStore', () => {
 			let pushResolve: (() => void) | undefined;
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
 					await new Promise<void>((resolve) => {
 						pushResolve = resolve;
 					});
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -1472,10 +1474,10 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				sync: mockSyncAdapter,
-				syncConfig: { debounceMs: 10 }, // Short debounce
+				syncConfig: {debounceMs: 10}, // Short debounce
 			});
 
 			await store.load();
@@ -1487,7 +1489,7 @@ describe('createSyncableStore', () => {
 			store.syncStatus$.subscribe((s) => (syncStatusValue = s));
 
 			// Make a change
-			store.set('settings', { theme: 'light', volume: 0.8 });
+			store.set('settings', {theme: 'light', volume: 0.8});
 			expect(syncStatusValue?.hasPendingSync).toBe(true);
 
 			// Wait for sync to start
@@ -1505,13 +1507,13 @@ describe('createSyncableStore', () => {
 			let pushResolve: (() => void) | undefined;
 			const mockSyncAdapter = {
 				async pull(): Promise<PullResponse<TestSchema>> {
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push(): Promise<PushResponse> {
 					await new Promise<void>((resolve) => {
 						pushResolve = resolve;
 					});
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -1520,10 +1522,10 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				sync: mockSyncAdapter,
-				syncConfig: { debounceMs: 10 },
+				syncConfig: {debounceMs: 10},
 			});
 
 			await store.load();
@@ -1540,7 +1542,7 @@ describe('createSyncableStore', () => {
 			pendingHistory.length = 0;
 
 			// Make a change - should notify with true
-			store.set('settings', { theme: 'light', volume: 0.8 });
+			store.set('settings', {theme: 'light', volume: 0.8});
 
 			// Should have notified with true
 			expect(pendingHistory).toContain(true);
@@ -1564,7 +1566,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -1584,7 +1586,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -1596,7 +1598,7 @@ describe('createSyncableStore', () => {
 			// Clear any events from the initial setup
 			events.length = 0;
 
-			store.set('settings', { theme: 'light', volume: 0.8 });
+			store.set('settings', {theme: 'light', volume: 0.8});
 
 			// State event should NOT be emitted on data modifications
 			// (use field-level events like 'settings:changed' instead)
@@ -1610,12 +1612,12 @@ describe('createSyncableStore', () => {
 			storage.data.set('test-key', {
 				$version: 1,
 				data: {
-					settings: { theme: 'dark', volume: 0.5 },
+					settings: {theme: 'dark', volume: 0.5},
 					operations: {},
 				},
-				$timestamps: { settings: 500 },
-				$itemTimestamps: { operations: {} },
-				$tombstones: { operations: {} },
+				$timestamps: {settings: 500},
+				$itemTimestamps: {operations: {}},
+				$tombstones: {operations: {}},
 			});
 
 			// Track migration calls
@@ -1626,7 +1628,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				schemaVersion: 3, // Target version 3
 				migrations: {
@@ -1677,12 +1679,12 @@ describe('createSyncableStore', () => {
 			storage.data.set('test-key', {
 				$version: 1,
 				data: {
-					settings: { theme: 'dark', volume: 0.5 },
+					settings: {theme: 'dark', volume: 0.5},
 					operations: {},
 				},
-				$timestamps: { settings: 500 },
-				$itemTimestamps: { operations: {} },
-				$tombstones: { operations: {} },
+				$timestamps: {settings: 500},
+				$itemTimestamps: {operations: {}},
+				$tombstones: {operations: {}},
 			});
 
 			// Create store with schemaVersion 3 but only migration for v3 (missing v2)
@@ -1691,7 +1693,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				schemaVersion: 3, // Target version 3
 				migrations: {
@@ -1723,12 +1725,12 @@ describe('createSyncableStore', () => {
 			storage.data.set('test-key', {
 				$version: 3,
 				data: {
-					settings: { theme: 'existing', volume: 0.7 },
+					settings: {theme: 'existing', volume: 0.7},
 					operations: {},
 				},
-				$timestamps: { settings: 500 },
-				$itemTimestamps: { operations: {} },
-				$tombstones: { operations: {} },
+				$timestamps: {settings: 500},
+				$itemTimestamps: {operations: {}},
+				$tombstones: {operations: {}},
 			});
 
 			const migrationCalls: number[] = [];
@@ -1738,7 +1740,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				schemaVersion: 3,
 				migrations: {
@@ -1775,7 +1777,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'default-theme', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'default-theme', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 				schemaVersion: 3,
 				migrations: {
@@ -1811,7 +1813,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -1829,13 +1831,13 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
-			let fieldValue: { theme: string; volume: number } | undefined;
+			let fieldValue: {theme: string; volume: number} | undefined;
 			const fieldStore = store.watchField('settings');
 			fieldStore.subscribe((v) => (fieldValue = v));
 
@@ -1850,18 +1852,18 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
-			let fieldValue: { theme: string; volume: number } | undefined;
+			let fieldValue: {theme: string; volume: number} | undefined;
 			const fieldStore = store.watchField('settings');
 			fieldStore.subscribe((v) => (fieldValue = v));
 
 			// Change the field
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 
 			expect(fieldValue?.theme).toBe('light');
 			expect(fieldValue?.volume).toBe(0.9);
@@ -1873,18 +1875,18 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
-			let fieldValue: { theme: string; volume: number } | undefined;
+			let fieldValue: {theme: string; volume: number} | undefined;
 			const fieldStore = store.watchField('settings');
 			fieldStore.subscribe((v) => (fieldValue = v));
 
 			// Patch the field
-			store.patch('settings', { volume: 0.9 });
+			store.patch('settings', {volume: 0.9});
 
 			expect(fieldValue?.theme).toBe('dark'); // unchanged
 			expect(fieldValue?.volume).toBe(0.9); // patched
@@ -1896,16 +1898,16 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
 			// Add some items first
-			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
-			let fieldValue: Record<string, { tx: string; status: string; deleteAt: number }> | undefined;
+			let fieldValue: Record<string, {tx: string; status: string; deleteAt: number}> | undefined;
 			const fieldStore = store.watchField('operations');
 			fieldStore.subscribe((v) => (fieldValue = v as typeof fieldValue));
 
@@ -1920,13 +1922,13 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
-			let fieldValue: Record<string, { tx: string; status: string; deleteAt: number }> | undefined;
+			let fieldValue: Record<string, {tx: string; status: string; deleteAt: number}> | undefined;
 			const fieldStore = store.watchField('operations');
 			fieldStore.subscribe((v) => (fieldValue = v as typeof fieldValue));
 
@@ -1934,7 +1936,7 @@ describe('createSyncableStore', () => {
 			expect(Object.keys(fieldValue || {}).length).toBe(0);
 
 			// Add an item
-			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Should now have the item
 			expect(Object.keys(fieldValue || {}).length).toBe(1);
@@ -1947,16 +1949,16 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
 			// Add item first
-			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
-			let fieldValue: Record<string, { tx: string; status: string; deleteAt: number }> | undefined;
+			let fieldValue: Record<string, {tx: string; status: string; deleteAt: number}> | undefined;
 			const fieldStore = store.watchField('operations');
 			fieldStore.subscribe((v) => (fieldValue = v as typeof fieldValue));
 
@@ -1976,14 +1978,14 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
 			await store.load();
 
 			// Add item first
-			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let subscribeCallCount = 0;
 			const fieldStore = store.watchField('operations');
@@ -1996,7 +1998,7 @@ describe('createSyncableStore', () => {
 
 			// Update item
 			clock = 2000;
-			store.update('operations', 'op-1', { tx: '0xabc', status: 'confirmed' });
+			store.update('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
 			// Should NOT have triggered the field store
 			expect(subscribeCallCount).toBe(0);
@@ -2008,7 +2010,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -2034,7 +2036,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -2058,7 +2060,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -2074,7 +2076,7 @@ describe('createSyncableStore', () => {
 			subscriptionCallCount = 0;
 
 			// Make a change to permanent field
-			store.set('settings', { theme: 'light', volume: 0.8 });
+			store.set('settings', {theme: 'light', volume: 0.8});
 
 			// Should NOT have triggered another subscription call
 			expect(subscriptionCallCount).toBe(0);
@@ -2086,7 +2088,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
 
@@ -2102,12 +2104,12 @@ describe('createSyncableStore', () => {
 			subscriptionCallCount = 0;
 
 			// Add item
-			store.add('operations', 'op-1', { tx: '0xabc', status: 'pending' }, { deleteAt: 9999 });
+			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 			expect(subscriptionCallCount).toBe(0);
 
 			// Update item
 			clock = 2000;
-			store.update('operations', 'op-1', { tx: '0xabc', status: 'confirmed' });
+			store.update('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 			expect(subscriptionCallCount).toBe(0);
 
 			// Remove item
@@ -2118,16 +2120,17 @@ describe('createSyncableStore', () => {
 
 	describe('SyncAdapter integration', () => {
 		it('pulls from server on load', async () => {
-			const pullCount = { value: 0 };
+			const pullCount = {value: 0};
 			const mockAdapter = createMockSyncAdapter({
 				pullCount,
-				onPull: async () => ({ success: true,
+				onPull: async () => ({
+					success: true,
 					data: {
 						$version: 1,
-						data: { settings: { theme: 'server', volume: 0.7 }, operations: {} },
-						$timestamps: { settings: 100 },
-						$itemTimestamps: { operations: {} },
-						$tombstones: { operations: {} },
+						data: {settings: {theme: 'server', volume: 0.7}, operations: {}},
+						$timestamps: {settings: 100},
+						$itemTimestamps: {operations: {}},
+						$tombstones: {operations: {}},
 					},
 					counter: 1000n,
 				}),
@@ -2138,7 +2141,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
 				clock: () => clock,
 			});
@@ -2153,23 +2156,24 @@ describe('createSyncableStore', () => {
 			storage.data.set('test-key', {
 				$version: 1,
 				data: {
-					settings: { theme: 'local', volume: 0.5 },
+					settings: {theme: 'local', volume: 0.5},
 					operations: {},
 				},
-				$timestamps: { settings: 100 }, // Local timestamp
-				$itemTimestamps: { operations: {} },
-				$tombstones: { operations: {} },
+				$timestamps: {settings: 100}, // Local timestamp
+				$itemTimestamps: {operations: {}},
+				$tombstones: {operations: {}},
 			});
 
 			let pushResolve: (() => void) | undefined;
 			const mockAdapter = createMockSyncAdapter({
-				onPull: async () => ({ success: true,
+				onPull: async () => ({
+					success: true,
 					data: {
 						$version: 1,
-						data: { settings: { theme: 'server', volume: 0.7 }, operations: {} },
-						$timestamps: { settings: 5000 }, // Higher timestamp than local
-						$itemTimestamps: { operations: {} },
-						$tombstones: { operations: {} },
+						data: {settings: {theme: 'server', volume: 0.7}, operations: {}},
+						$timestamps: {settings: 5000}, // Higher timestamp than local
+						$itemTimestamps: {operations: {}},
+						$tombstones: {operations: {}},
 					},
 					counter: 1000n,
 				}),
@@ -2177,7 +2181,7 @@ describe('createSyncableStore', () => {
 					await new Promise<void>((resolve) => {
 						pushResolve = resolve;
 					});
-					return { success: true };
+					return {success: true};
 				},
 			});
 
@@ -2186,7 +2190,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
 				clock: () => clock,
 			});
@@ -2211,22 +2215,23 @@ describe('createSyncableStore', () => {
 			storage.data.set('test-key', {
 				$version: 1,
 				data: {
-					settings: { theme: 'local', volume: 0.9 },
+					settings: {theme: 'local', volume: 0.9},
 					operations: {},
 				},
-				$timestamps: { settings: 10000 }, // Higher than server
-				$itemTimestamps: { operations: {} },
-				$tombstones: { operations: {} },
+				$timestamps: {settings: 10000}, // Higher than server
+				$itemTimestamps: {operations: {}},
+				$tombstones: {operations: {}},
 			});
 
 			const mockAdapter = createMockSyncAdapter({
-				onPull: async () => ({ success: true,
+				onPull: async () => ({
+					success: true,
 					data: {
 						$version: 1,
-						data: { settings: { theme: 'server', volume: 0.7 }, operations: {} },
-						$timestamps: { settings: 100 }, // Lower timestamp than local
-						$itemTimestamps: { operations: {} },
-						$tombstones: { operations: {} },
+						data: {settings: {theme: 'server', volume: 0.7}, operations: {}},
+						$timestamps: {settings: 100}, // Lower timestamp than local
+						$itemTimestamps: {operations: {}},
+						$tombstones: {operations: {}},
 					},
 					counter: 1000n,
 				}),
@@ -2237,7 +2242,7 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
 				clock: () => clock,
 			});
@@ -2254,7 +2259,7 @@ describe('createSyncableStore', () => {
 		});
 
 		it('pushes changes to server after mutation', async () => {
-			const pushCount = { value: 0 };
+			const pushCount = {value: 0};
 			const mockAdapter = createMockSyncAdapter({
 				pushCount,
 			});
@@ -2264,16 +2269,16 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
-				syncConfig: { debounceMs: 10 }, // Short debounce for testing
+				syncConfig: {debounceMs: 10}, // Short debounce for testing
 				clock: () => clock,
 			});
 
 			await store.load();
 			const initialPushCount = pushCount.value;
 
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for debounce
 			await new Promise((r) => setTimeout(r, 50));
@@ -2292,7 +2297,7 @@ describe('createSyncableStore', () => {
 					await new Promise<void>((resolve) => {
 						pushResolve = resolve;
 					});
-					return { success: true };
+					return {success: true};
 				},
 			});
 
@@ -2301,9 +2306,9 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
-				syncConfig: { debounceMs: 10 },
+				syncConfig: {debounceMs: 10},
 				clock: () => clock,
 			});
 
@@ -2311,10 +2316,10 @@ describe('createSyncableStore', () => {
 			pushResolve?.(); // Complete initial sync
 			await new Promise((r) => setTimeout(r, 20));
 
-			const syncEvents: { type: string }[] = [];
+			const syncEvents: {type: string}[] = [];
 			store.on('$store:sync', (e) => syncEvents.push(e));
 
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for debounce to trigger and sync to start
 			await new Promise((r) => setTimeout(r, 30));
@@ -2334,7 +2339,7 @@ describe('createSyncableStore', () => {
 					await new Promise<void>((resolve) => {
 						pushResolve = resolve;
 					});
-					return { success: true };
+					return {success: true};
 				},
 			});
 
@@ -2343,9 +2348,9 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
-				syncConfig: { debounceMs: 10 },
+				syncConfig: {debounceMs: 10},
 				clock: () => clock,
 			});
 
@@ -2353,10 +2358,10 @@ describe('createSyncableStore', () => {
 			pushResolve?.(); // Complete initial sync
 			await new Promise((r) => setTimeout(r, 20));
 
-			const syncEvents: { type: string; timestamp?: number }[] = [];
+			const syncEvents: {type: string; timestamp?: number}[] = [];
 			store.on('$store:sync', (e) => syncEvents.push(e));
 
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for debounce and sync to start
 			await new Promise((r) => setTimeout(r, 30));
@@ -2382,18 +2387,18 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
-				syncConfig: { debounceMs: 10, maxRetries: 0 }, // No retries for this test
+				syncConfig: {debounceMs: 10, maxRetries: 0}, // No retries for this test
 				clock: () => clock,
 			});
 
 			await store.load();
 
-			const syncEvents: { type: string; error?: Error }[] = [];
+			const syncEvents: {type: string; error?: Error}[] = [];
 			store.on('$store:sync', (e) => syncEvents.push(e));
 
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for debounce and sync to fail
 			await new Promise((r) => setTimeout(r, 50));
@@ -2413,10 +2418,10 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: {
 					async pull() {
-						return { success: true, data: null, counter: 0n };
+						return {success: true, data: null, counter: 0n};
 					},
 					async push() {
 						// Capture sync status during push
@@ -2428,10 +2433,10 @@ describe('createSyncableStore', () => {
 						await new Promise<void>((resolve) => {
 							pushResolve = resolve;
 						});
-						return { success: true };
+						return {success: true};
 					},
 				},
-				syncConfig: { debounceMs: 10 },
+				syncConfig: {debounceMs: 10},
 				clock: () => clock,
 			});
 
@@ -2439,7 +2444,7 @@ describe('createSyncableStore', () => {
 			pushResolve?.(); // Complete initial sync
 			await new Promise((r) => setTimeout(r, 20));
 
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for debounce and sync to start
 			await new Promise((r) => setTimeout(r, 30));
@@ -2470,15 +2475,15 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
-				syncConfig: { debounceMs: 10, maxRetries: 0 }, // No retries for this test
+				syncConfig: {debounceMs: 10, maxRetries: 0}, // No retries for this test
 				clock: () => clock,
 			});
 
 			await store.load();
 
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for debounce and sync to fail
 			await new Promise((r) => setTimeout(r, 50));
@@ -2496,7 +2501,7 @@ describe('createSyncableStore', () => {
 					await new Promise<void>((resolve) => {
 						pushResolve = resolve;
 					});
-					return { success: true };
+					return {success: true};
 				},
 			});
 
@@ -2505,9 +2510,9 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
-				syncConfig: { debounceMs: 10 },
+				syncConfig: {debounceMs: 10},
 				clock: () => clock,
 			});
 
@@ -2521,7 +2526,7 @@ describe('createSyncableStore', () => {
 			// Initial lastSyncedAt after first sync should be set
 			const initialSyncedAt = syncStatus?.lastSyncedAt;
 
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for sync to start
 			await new Promise((r) => setTimeout(r, 30));
@@ -2540,7 +2545,7 @@ describe('createSyncableStore', () => {
 
 	describe('sync lifecycle', () => {
 		it('debounces rapid changes into single sync', async () => {
-			const pushCount = { value: 0 };
+			const pushCount = {value: 0};
 			let pushResolve: (() => void) | undefined;
 
 			const mockAdapter = createMockSyncAdapter({
@@ -2549,7 +2554,7 @@ describe('createSyncableStore', () => {
 					await new Promise<void>((resolve) => {
 						pushResolve = resolve;
 					});
-					return { success: true };
+					return {success: true};
 				},
 			});
 
@@ -2558,9 +2563,9 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
-				syncConfig: { debounceMs: 50 },
+				syncConfig: {debounceMs: 50},
 				clock: () => clock,
 			});
 
@@ -2574,7 +2579,7 @@ describe('createSyncableStore', () => {
 
 			// Make 5 rapid changes
 			for (let i = 0; i < 5; i++) {
-				store.set('settings', { theme: `theme-${i}`, volume: i / 10 });
+				store.set('settings', {theme: `theme-${i}`, volume: i / 10});
 			}
 
 			// Wait for debounce
@@ -2594,14 +2599,14 @@ describe('createSyncableStore', () => {
 			let attempts = 0;
 			const mockAdapter: SyncAdapter<TestSchema> = {
 				async pull() {
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push() {
 					attempts++;
 					if (attempts < 3) {
 						throw new Error('Network error');
 					}
-					return { success: true };
+					return {success: true};
 				},
 			};
 
@@ -2610,16 +2615,16 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
-				syncConfig: { debounceMs: 10, maxRetries: 3, retryBackoffMs: 10 },
+				syncConfig: {debounceMs: 10, maxRetries: 3, retryBackoffMs: 10},
 				clock: () => clock,
 			});
 
 			await store.load();
 			attempts = 0; // Reset after initial sync
 
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for retries (debounce + retries with backoff)
 			await new Promise((r) => setTimeout(r, 300));
@@ -2632,7 +2637,7 @@ describe('createSyncableStore', () => {
 			let attempts = 0;
 			const mockAdapter: SyncAdapter<TestSchema> = {
 				async pull() {
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push() {
 					attempts++;
@@ -2645,19 +2650,19 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
-				syncConfig: { debounceMs: 10, maxRetries: 2, retryBackoffMs: 10 },
+				syncConfig: {debounceMs: 10, maxRetries: 2, retryBackoffMs: 10},
 				clock: () => clock,
 			});
 
 			await store.load();
 			attempts = 0; // Reset after initial sync
 
-			const syncEvents: { type: string; error?: Error }[] = [];
+			const syncEvents: {type: string; error?: Error}[] = [];
 			store.on('$store:sync', (e) => syncEvents.push(e));
 
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for all retries
 			await new Promise((r) => setTimeout(r, 300));
@@ -2678,7 +2683,7 @@ describe('createSyncableStore', () => {
 
 			const mockAdapter: SyncAdapter<TestSchema> = {
 				async pull() {
-					return { success: true, data: null, counter: 0n };
+					return {success: true, data: null, counter: 0n};
 				},
 				async push() {
 					callTimes.push(Date.now());
@@ -2691,16 +2696,16 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
-				syncConfig: { debounceMs: 10, maxRetries: 3, retryBackoffMs: 20 },
+				syncConfig: {debounceMs: 10, maxRetries: 3, retryBackoffMs: 20},
 				clock: () => clock,
 			});
 
 			await store.load();
 			callTimes.length = 0; // Clear after initial sync
 
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for all retries (debounce + 3 retries with increasing backoff)
 			await new Promise((r) => setTimeout(r, 500));
@@ -2720,7 +2725,7 @@ describe('createSyncableStore', () => {
 
 	describe('cleanup on stop', () => {
 		it('cancels pending sync when stop is called', async () => {
-			const pushCount = { value: 0 };
+			const pushCount = {value: 0};
 			let pushResolve: (() => void) | undefined;
 
 			const mockAdapter = createMockSyncAdapter({
@@ -2729,7 +2734,7 @@ describe('createSyncableStore', () => {
 					await new Promise<void>((resolve) => {
 						pushResolve = resolve;
 					});
-					return { success: true };
+					return {success: true};
 				},
 			});
 
@@ -2738,9 +2743,9 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage,
 				storageKey: 'test-key',
-				defaultData: () => ({ settings: { theme: 'dark', volume: 0.5 }, operations: {} }),
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				sync: mockAdapter,
-				syncConfig: { debounceMs: 100 }, // Long debounce
+				syncConfig: {debounceMs: 100}, // Long debounce
 				clock: () => clock,
 			});
 
@@ -2752,7 +2757,7 @@ describe('createSyncableStore', () => {
 
 			const initialPushCount = pushCount.value;
 
-			store.set('settings', { theme: 'light', volume: 0.9 });
+			store.set('settings', {theme: 'light', volume: 0.9});
 
 			// Stop before debounce fires (debounce is 100ms)
 			await new Promise((r) => setTimeout(r, 20));
@@ -2763,6 +2768,498 @@ describe('createSyncableStore', () => {
 
 			// Push should not have been called after initial sync (debounce was cancelled)
 			expect(pushCount.value).toBe(initialPushCount);
+		});
+	});
+
+	describe('storage debouncing', () => {
+		it('should coalesce rapid saves into single storage write', async () => {
+			let saveCallCount = 0;
+			let lastSavedData: InternalStorage<TestSchema> | undefined;
+
+			const trackingStorage: AsyncStorage<InternalStorage<TestSchema>> = {
+				async load(key: string) {
+					return storage.data.get(key);
+				},
+				async save(key: string, value: InternalStorage<TestSchema>) {
+					saveCallCount++;
+					lastSavedData = value;
+					storage.data.set(key, value);
+				},
+				async remove(key: string) {
+					storage.data.delete(key);
+				},
+				async exists(key: string) {
+					return storage.data.has(key);
+				},
+			};
+
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: trackingStorage,
+				storageKey: 'test-key',
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+				syncConfig: {storageDebounceMs: 50},
+			});
+
+			await store.load();
+			saveCallCount = 0; // Reset after load
+
+			// Rapid mutations
+			store.set('settings', {theme: 'value1', volume: 0.1});
+			store.set('settings', {theme: 'value2', volume: 0.2});
+			store.set('settings', {theme: 'value3', volume: 0.3});
+
+			// Wait for debounce
+			await new Promise((r) => setTimeout(r, 100));
+			await store.flush();
+
+			// Should only have saved once with final value
+			expect(saveCallCount).toBe(1);
+			expect(lastSavedData?.data.settings.theme).toBe('value3');
+		});
+
+		it('should batch multiple field changes within debounce window', async () => {
+			let saveCallCount = 0;
+			let lastSavedData: InternalStorage<TestSchema> | undefined;
+
+			const trackingStorage: AsyncStorage<InternalStorage<TestSchema>> = {
+				async load(key: string) {
+					return storage.data.get(key);
+				},
+				async save(key: string, value: InternalStorage<TestSchema>) {
+					saveCallCount++;
+					lastSavedData = value;
+					storage.data.set(key, value);
+				},
+				async remove(key: string) {
+					storage.data.delete(key);
+				},
+				async exists(key: string) {
+					return storage.data.has(key);
+				},
+			};
+
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: trackingStorage,
+				storageKey: 'test-key',
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+				syncConfig: {storageDebounceMs: 50},
+			});
+
+			await store.load();
+			saveCallCount = 0; // Reset after load
+
+			store.set('settings', {theme: 'newTheme', volume: 0.9});
+			store.add('operations', 'op1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+
+			await new Promise((r) => setTimeout(r, 100));
+			await store.flush();
+
+			expect(saveCallCount).toBe(1);
+			expect(lastSavedData?.data.settings.theme).toBe('newTheme');
+			expect(lastSavedData?.data.operations['op1']).toBeDefined();
+		});
+	});
+
+	describe('storage queue', () => {
+		it('should queue save when one is in progress', async () => {
+			let saveCallCount = 0;
+			let saveResolve: (() => void) | undefined;
+
+			const slowStorage: AsyncStorage<InternalStorage<TestSchema>> = {
+				async load(key: string) {
+					return storage.data.get(key);
+				},
+				async save(key: string, value: InternalStorage<TestSchema>) {
+					saveCallCount++;
+					// Make saves slow
+					await new Promise<void>((resolve) => {
+						saveResolve = resolve;
+					});
+					storage.data.set(key, value);
+				},
+				async remove(key: string) {
+					storage.data.delete(key);
+				},
+				async exists(key: string) {
+					return storage.data.has(key);
+				},
+			};
+
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: slowStorage,
+				storageKey: 'test-key',
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+				syncConfig: {storageDebounceMs: 0}, // No debounce for this test
+			});
+
+			await store.load();
+			saveResolve?.(); // Complete initial load save if any
+			await new Promise((r) => setTimeout(r, 20));
+			saveCallCount = 0;
+
+			// First save starts immediately
+			store.set('settings', {theme: 'value1', volume: 0.1});
+
+			// Wait for save to start
+			await new Promise((r) => setTimeout(r, 20));
+
+			// This should queue while first is in progress (uses internalStorage reference)
+			store.set('settings', {theme: 'value2', volume: 0.2});
+
+			// Complete first save - but it will save latest state (value2)
+			// because we use internalStorage reference directly
+			saveResolve?.();
+			await new Promise((r) => setTimeout(r, 50));
+
+			// Complete second save
+			saveResolve?.();
+			await store.flush();
+
+			// Should have 2 saves: initial + queued
+			// Both save the final value because we use internalStorage reference
+			// This is correct - CRDT timestamps ensure the latest state is always saved
+			expect(saveCallCount).toBe(2);
+		});
+	});
+
+	describe('immediate save option', () => {
+		it('should bypass debounce when immediate=true', async () => {
+			let saveCallCount = 0;
+
+			const trackingStorage: AsyncStorage<InternalStorage<TestSchema>> = {
+				async load(key: string) {
+					return storage.data.get(key);
+				},
+				async save(key: string, value: InternalStorage<TestSchema>) {
+					saveCallCount++;
+					storage.data.set(key, value);
+				},
+				async remove(key: string) {
+					storage.data.delete(key);
+				},
+				async exists(key: string) {
+					return storage.data.has(key);
+				},
+			};
+
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: trackingStorage,
+				storageKey: 'test-key',
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+				syncConfig: {storageDebounceMs: 1000}, // Long debounce
+			});
+
+			await store.load();
+			saveCallCount = 0;
+
+			const startTime = Date.now();
+			store.set('settings', {theme: 'critical', volume: 0.9}, {immediate: true});
+			await store.flush();
+
+			// Should save immediately, not after 1000ms
+			expect(Date.now() - startTime).toBeLessThan(100);
+			expect(saveCallCount).toBe(1);
+		});
+
+		it('should clear pending debounce timer when immediate=true', async () => {
+			let saveCallCount = 0;
+			let lastSavedTheme: string | undefined;
+
+			const trackingStorage: AsyncStorage<InternalStorage<TestSchema>> = {
+				async load(key: string) {
+					return storage.data.get(key);
+				},
+				async save(key: string, value: InternalStorage<TestSchema>) {
+					saveCallCount++;
+					lastSavedTheme = value.data.settings.theme;
+					storage.data.set(key, value);
+				},
+				async remove(key: string) {
+					storage.data.delete(key);
+				},
+				async exists(key: string) {
+					return storage.data.has(key);
+				},
+			};
+
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: trackingStorage,
+				storageKey: 'test-key',
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+				syncConfig: {storageDebounceMs: 500},
+			});
+
+			await store.load();
+			saveCallCount = 0;
+
+			store.set('settings', {theme: 'debounced', volume: 0.1});
+			store.set('settings', {theme: 'immediate', volume: 0.2}, {immediate: true});
+
+			await store.flush();
+
+			// Only immediate save should occur
+			expect(saveCallCount).toBe(1);
+			expect(lastSavedTheme).toBe('immediate');
+		});
+
+		it('should work for all mutation types', async () => {
+			let saveCallCount = 0;
+
+			const trackingStorage: AsyncStorage<InternalStorage<TestSchema>> = {
+				async load(key: string) {
+					return storage.data.get(key);
+				},
+				async save(key: string, value: InternalStorage<TestSchema>) {
+					saveCallCount++;
+					storage.data.set(key, value);
+				},
+				async remove(key: string) {
+					storage.data.delete(key);
+				},
+				async exists(key: string) {
+					return storage.data.has(key);
+				},
+			};
+
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: trackingStorage,
+				storageKey: 'test-key',
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+				syncConfig: {storageDebounceMs: 1000},
+			});
+
+			await store.load();
+			saveCallCount = 0;
+
+			store.patch('settings', {volume: 0.9}, {immediate: true});
+			await store.flush();
+			expect(saveCallCount).toBe(1);
+
+			store.add(
+				'operations',
+				'key1',
+				{tx: '0x123', status: 'pending'},
+				{deleteAt: 999, immediate: true},
+			);
+			await store.flush();
+			expect(saveCallCount).toBe(2);
+
+			clock = 2000;
+			store.update('operations', 'key1', {tx: '0x123', status: 'confirmed'}, {immediate: true});
+			await store.flush();
+			expect(saveCallCount).toBe(3);
+
+			store.remove('operations', 'key1', {immediate: true});
+			await store.flush();
+			expect(saveCallCount).toBe(4);
+		});
+	});
+
+	describe('sync queue protection', () => {
+		it('should prevent concurrent syncs', async () => {
+			let concurrentCalls = 0;
+			let maxConcurrent = 0;
+
+			const mockAdapter: SyncAdapter<TestSchema> = {
+				async pull() {
+					concurrentCalls++;
+					maxConcurrent = Math.max(maxConcurrent, concurrentCalls);
+					await new Promise((r) => setTimeout(r, 100));
+					concurrentCalls--;
+					return {success: true as const, data: null, counter: 0n};
+				},
+				async push() {
+					concurrentCalls++;
+					maxConcurrent = Math.max(maxConcurrent, concurrentCalls);
+					await new Promise((r) => setTimeout(r, 100));
+					concurrentCalls--;
+					return {success: true as const};
+				},
+			};
+
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage,
+				storageKey: 'test-key',
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				sync: mockAdapter,
+				syncConfig: {debounceMs: 0},
+				clock: () => clock,
+			});
+
+			await store.load();
+			maxConcurrent = 0;
+
+			// Trigger multiple syncs rapidly
+			store.syncNow();
+			store.syncNow();
+			store.syncNow();
+
+			await new Promise((r) => setTimeout(r, 500));
+
+			// Should never have more than 1 concurrent sync
+			expect(maxConcurrent).toBe(1);
+		});
+
+		it('should coalesce multiple queued syncs into one', async () => {
+			let syncCount = 0;
+			let syncResolve: (() => void) | undefined;
+
+			const mockAdapter: SyncAdapter<TestSchema> = {
+				async pull() {
+					syncCount++;
+					await new Promise<void>((resolve) => {
+						syncResolve = resolve;
+					});
+					return {success: true as const, data: null, counter: 0n};
+				},
+				async push() {
+					return {success: true as const};
+				},
+			};
+
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage,
+				storageKey: 'test-key',
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				sync: mockAdapter,
+				syncConfig: {debounceMs: 0},
+				clock: () => clock,
+			});
+
+			await store.load();
+			syncResolve?.(); // Complete initial sync
+			await new Promise((r) => setTimeout(r, 20));
+			syncCount = 0; // Reset after initial load
+
+			// Start sync #1
+			store.syncNow();
+			await new Promise((r) => setTimeout(r, 20)); // Wait for sync to start
+
+			// Queue multiple syncs while first is in progress
+			store.syncNow();
+			store.syncNow();
+			store.syncNow();
+
+			// Complete first sync
+			syncResolve?.();
+			await new Promise((r) => setTimeout(r, 20)); // Wait for second sync to start
+
+			// Complete second sync
+			syncResolve?.();
+			await new Promise((r) => setTimeout(r, 50));
+
+			// Should be exactly 2: original + one queued (others coalesced)
+			expect(syncCount).toBe(2);
+
+			store.stop();
+		});
+	});
+
+	describe('flush with debouncing', () => {
+		it('should wait for debounced storage operations', async () => {
+			let saveCallCount = 0;
+
+			const trackingStorage: AsyncStorage<InternalStorage<TestSchema>> = {
+				async load(key: string) {
+					return storage.data.get(key);
+				},
+				async save(key: string, value: InternalStorage<TestSchema>) {
+					saveCallCount++;
+					storage.data.set(key, value);
+				},
+				async remove(key: string) {
+					storage.data.delete(key);
+				},
+				async exists(key: string) {
+					return storage.data.has(key);
+				},
+			};
+
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: trackingStorage,
+				storageKey: 'test-key',
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+				syncConfig: {storageDebounceMs: 500},
+			});
+
+			await store.load();
+			saveCallCount = 0;
+
+			store.set('settings', {theme: 'test', volume: 0.5});
+
+			// Flush should trigger immediate save
+			const startTime = Date.now();
+			await store.flush();
+
+			expect(Date.now() - startTime).toBeLessThan(100);
+			expect(saveCallCount).toBe(1);
+		});
+
+		it('should clear debounce timer and save pending data', async () => {
+			let lastSavedData: InternalStorage<TestSchema> | undefined;
+
+			const trackingStorage: AsyncStorage<InternalStorage<TestSchema>> = {
+				async load(key: string) {
+					return storage.data.get(key);
+				},
+				async save(key: string, value: InternalStorage<TestSchema>) {
+					lastSavedData = value;
+					storage.data.set(key, value);
+				},
+				async remove(key: string) {
+					storage.data.delete(key);
+				},
+				async exists(key: string) {
+					return storage.data.has(key);
+				},
+			};
+
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: trackingStorage,
+				storageKey: 'test-key',
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+				syncConfig: {storageDebounceMs: 10000},
+			});
+
+			await store.load();
+
+			store.set('settings', {theme: 'a', volume: 0.1});
+			store.set('settings', {theme: 'b', volume: 0.2});
+			store.set('settings', {theme: 'c', volume: 0.3});
+
+			// Without flush, would wait 10 seconds
+			await store.flush();
+
+			expect(lastSavedData?.data.settings.theme).toBe('c');
+			expect(lastSavedData?.data.settings.volume).toBe(0.3);
 		});
 	});
 });

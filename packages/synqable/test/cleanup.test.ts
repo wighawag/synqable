@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { cleanup, defineSchema, permanent, map } from '../src/index.js';
+import {describe, it, expect} from 'vitest';
+import {cleanup, defineSchema, permanent, map} from '../src/index.js';
 
 describe('cleanup', () => {
 	const testSchema = defineSchema({
-		settings: permanent<{ theme: string }>(),
-		operations: map<{ tx: string; status: string }>(),
+		settings: permanent<{theme: string}>(),
+		operations: map<{tx: string; status: string}>(),
 	});
 
 	it('removes expired items past their deleteAt', () => {
@@ -12,15 +12,15 @@ describe('cleanup', () => {
 		const storage = {
 			$version: 1,
 			data: {
-				settings: { theme: 'dark' },
+				settings: {theme: 'dark'},
 				operations: {
-					'op-1': { tx: '0x1', status: 'done', deleteAt: 3000 }, // Expired
-					'op-2': { tx: '0x2', status: 'pending', deleteAt: 7000 }, // Still valid
+					'op-1': {tx: '0x1', status: 'done', deleteAt: 3000}, // Expired
+					'op-2': {tx: '0x2', status: 'pending', deleteAt: 7000}, // Still valid
 				},
 			},
-			$timestamps: { settings: 1000 },
-			$itemTimestamps: { operations: { 'op-1': 1000, 'op-2': 2000 } },
-			$tombstones: { operations: {} },
+			$timestamps: {settings: 1000},
+			$itemTimestamps: {operations: {'op-1': 1000, 'op-2': 2000}},
+			$tombstones: {operations: {}},
 		};
 
 		const result = cleanup(storage, testSchema, now);
@@ -35,7 +35,7 @@ describe('cleanup', () => {
 		expect(result.changes[0].event).toBe('operations:removed');
 		expect(result.changes[0].data).toEqual({
 			key: 'op-1',
-			item: { tx: '0x1', status: 'done', deleteAt: 3000 },
+			item: {tx: '0x1', status: 'done', deleteAt: 3000},
 		});
 	});
 
@@ -44,11 +44,11 @@ describe('cleanup', () => {
 		const storage = {
 			$version: 1,
 			data: {
-				settings: { theme: 'dark' },
+				settings: {theme: 'dark'},
 				operations: {},
 			},
-			$timestamps: { settings: 1000 },
-			$itemTimestamps: { operations: {} },
+			$timestamps: {settings: 1000},
+			$itemTimestamps: {operations: {}},
 			$tombstones: {
 				operations: {
 					'old-item': 3000, // Expired tombstone
@@ -73,14 +73,14 @@ describe('cleanup', () => {
 		const storage = {
 			$version: 1,
 			data: {
-				settings: { theme: 'light' },
+				settings: {theme: 'light'},
 				operations: {
-					'op-1': { tx: '0x1', status: 'pending', deleteAt: 5000 },
+					'op-1': {tx: '0x1', status: 'pending', deleteAt: 5000},
 				},
 			},
-			$timestamps: { settings: 1000 },
-			$itemTimestamps: { operations: { 'op-1': 1500 } },
-			$tombstones: { operations: { 'deleted-1': 6000 } },
+			$timestamps: {settings: 1000},
+			$itemTimestamps: {operations: {'op-1': 1500}},
+			$tombstones: {operations: {'deleted-1': 6000}},
 		};
 
 		const result = cleanup(storage, testSchema, now);
@@ -98,18 +98,18 @@ describe('cleanup', () => {
 		const storage = {
 			$version: 1,
 			data: {
-				settings: { theme: 'dark' },
+				settings: {theme: 'dark'},
 				operations: {},
 			},
-			$timestamps: { settings: 1000 },
-			$itemTimestamps: { operations: {} },
-			$tombstones: { operations: {} },
+			$timestamps: {settings: 1000},
+			$itemTimestamps: {operations: {}},
+			$tombstones: {operations: {}},
 		};
 
 		const result = cleanup(storage, testSchema, now);
 
 		// Permanent fields are never cleaned up regardless of timestamp
-		expect(result.storage.data.settings).toStrictEqual({ theme: 'dark' });
+		expect(result.storage.data.settings).toStrictEqual({theme: 'dark'});
 		expect(result.storage.$timestamps.settings).toBe(1000);
 	});
 
@@ -117,14 +117,14 @@ describe('cleanup', () => {
 		const storage = {
 			$version: 1,
 			data: {
-				settings: { theme: 'dark' },
+				settings: {theme: 'dark'},
 				operations: {
-					'old-op': { tx: '0x1', status: 'done', deleteAt: 1 }, // Definitely expired
+					'old-op': {tx: '0x1', status: 'done', deleteAt: 1}, // Definitely expired
 				},
 			},
-			$timestamps: { settings: 1000 },
-			$itemTimestamps: { operations: { 'old-op': 1 } },
-			$tombstones: { operations: {} },
+			$timestamps: {settings: 1000},
+			$itemTimestamps: {operations: {'old-op': 1}},
+			$tombstones: {operations: {}},
 		};
 
 		const result = cleanup(storage, testSchema);

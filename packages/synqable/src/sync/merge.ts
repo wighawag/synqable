@@ -13,7 +13,7 @@ import type {
 	PermanentKeys,
 	MapKeys,
 } from './types.js';
-import { cleanup, type CleanupResult } from './cleanup.js';
+import {cleanup, type CleanupResult} from './cleanup.js';
 
 // ============================================================================
 // Merge Outcome Types
@@ -40,13 +40,13 @@ export function tiebreaker<T>(a: T, b: T): TiebreakerResult<T> {
 	const bStr = stableStringify(b) ?? '';
 
 	if (aStr === bStr) {
-		return { value: a, outcome: 'tie' };
+		return {value: a, outcome: 'tie'};
 	}
 
 	if (aStr < bStr) {
-		return { value: a, outcome: 'first' };
+		return {value: a, outcome: 'first'};
 	}
-	return { value: b, outcome: 'second' };
+	return {value: b, outcome: 'second'};
 }
 
 // ============================================================================
@@ -115,7 +115,7 @@ export interface MapState<T> {
 
 export interface MapChange<T> {
 	event: `${string}:added` | `${string}:updated` | `${string}:removed`;
-	data: { key: string; item: T };
+	data: {key: string; item: T};
 }
 
 export interface MapMergeResult<T> {
@@ -164,7 +164,7 @@ export function mergeMap<T>(
 			if (hadItem) {
 				changes.push({
 					event: `${fieldName}:removed`,
-					data: { key, item: current.items[key] },
+					data: {key, item: current.items[key]},
 				});
 			}
 			continue;
@@ -183,7 +183,7 @@ export function mergeMap<T>(
 			winnerTs = iTs;
 			changes.push({
 				event: `${fieldName}:added`,
-				data: { key, item: iItem },
+				data: {key, item: iItem},
 			});
 		} else if (cItem && !iItem) {
 			winner = cItem;
@@ -195,14 +195,14 @@ export function mergeMap<T>(
 				winnerTs = iTs;
 				changes.push({
 					event: `${fieldName}:updated`,
-					data: { key, item: iItem },
+					data: {key, item: iItem},
 				});
 			} else if (cTs > iTs) {
 				winner = cItem;
 				winnerTs = cTs;
 				localWonCount++;
 			} else {
-				const picked = tiebreaker({ item: cItem, ts: cTs }, { item: iItem, ts: iTs });
+				const picked = tiebreaker({item: cItem, ts: cTs}, {item: iItem, ts: iTs});
 				winner = picked.value.item;
 				winnerTs = picked.value.ts;
 
@@ -216,7 +216,7 @@ export function mergeMap<T>(
 					case 'second':
 						changes.push({
 							event: `${fieldName}:updated`,
-							data: { key, item: iItem },
+							data: {key, item: iItem},
 						});
 						break;
 				}
@@ -227,7 +227,7 @@ export function mergeMap<T>(
 		timestamps[key] = winnerTs;
 	}
 
-	return { items, timestamps, tombstones, changes, localWonCount, tieCount };
+	return {items, timestamps, tombstones, changes, localWonCount, tieCount};
 }
 
 // ============================================================================
@@ -265,8 +265,8 @@ export function mergeStore<S extends Schema>(
 			const incomingValue = (incoming.data as Record<string, unknown>)[field];
 
 			const mergeResult = mergePermanent(
-				{ value: currentValue, timestamp: currentTs },
-				{ value: incomingValue, timestamp: incomingTs },
+				{value: currentValue, timestamp: currentTs},
+				{value: incomingValue, timestamp: incomingTs},
 			);
 
 			(result.data as Record<string, unknown>)[field] = mergeResult.value;
@@ -274,7 +274,7 @@ export function mergeStore<S extends Schema>(
 
 			switch (mergeResult.outcome) {
 				case 'incoming':
-					changes.push({ event: `${field}:changed`, data: mergeResult.value });
+					changes.push({event: `${field}:changed`, data: mergeResult.value});
 					break;
 				case 'current':
 					if (currentTs > 0) {
@@ -329,7 +329,7 @@ export function mergeStore<S extends Schema>(
 		}
 	}
 
-	return { merged: result, changes, hasLocalChanges };
+	return {merged: result, changes, hasLocalChanges};
 }
 
 // ============================================================================
@@ -350,7 +350,7 @@ export function mergeAndCleanup<S extends Schema>(
 	schema: S,
 	now: number = Date.now(),
 ): MergeAndCleanupResult<S> {
-	const { merged, changes: mergeChanges, hasLocalChanges } = mergeStore(current, incoming, schema);
+	const {merged, changes: mergeChanges, hasLocalChanges} = mergeStore(current, incoming, schema);
 	const {
 		storage: cleaned,
 		changes: cleanupChanges,
@@ -378,7 +378,7 @@ function deduplicateChanges(
 	const expiredKeys = new Set<string>();
 	for (const change of cleanupChanges) {
 		if (change.event.endsWith(':removed')) {
-			const data = change.data as { key: string };
+			const data = change.data as {key: string};
 			const fieldName = change.event.split(':')[0];
 			expiredKeys.add(`${fieldName}:${data.key}`);
 		}
@@ -387,7 +387,7 @@ function deduplicateChanges(
 	const addedKeys = new Set<string>();
 	for (const change of mergeChanges) {
 		if (change.event.endsWith(':added')) {
-			const data = change.data as { key: string };
+			const data = change.data as {key: string};
 			const fieldName = change.event.split(':')[0];
 			addedKeys.add(`${fieldName}:${data.key}`);
 		}
@@ -397,7 +397,7 @@ function deduplicateChanges(
 		const fieldName = change.event.split(':')[0];
 
 		if (change.event.endsWith(':added') || change.event.endsWith(':updated')) {
-			const data = change.data as { key: string };
+			const data = change.data as {key: string};
 			const keyPath = `${fieldName}:${data.key}`;
 
 			if (expiredKeys.has(keyPath)) {
@@ -410,7 +410,7 @@ function deduplicateChanges(
 
 	for (const change of cleanupChanges) {
 		if (change.event.endsWith(':removed')) {
-			const data = change.data as { key: string };
+			const data = change.data as {key: string};
 			const fieldName = change.event.split(':')[0];
 			const keyPath = `${fieldName}:${data.key}`;
 

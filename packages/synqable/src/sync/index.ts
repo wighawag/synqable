@@ -29,6 +29,7 @@ export {
 	type StoreEvents,
 	type SyncAdapter,
 	type SyncConfig,
+	type MutationOptions,
 	type PullResponse,
 	type PullResponseSuccess,
 	type PullResponseError,
@@ -62,4 +63,4 @@ export {
 } from './merge.js';
 
 // Cleanup function
-export { cleanup, type CleanupResult } from './cleanup.js';
+export {cleanup, type CleanupResult} from './cleanup.js';

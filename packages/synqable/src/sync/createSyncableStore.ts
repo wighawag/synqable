@@ -21,13 +21,14 @@ import type {
 	StoreEvents,
 	SyncAdapter,
 	SyncConfig,
+	MutationOptions,
 } from './types.js';
 
-import type { AsyncStorage } from '../storage/types.js';
-import { isWatchable } from '../storage/types.js';
-import { cleanup } from './cleanup.js';
-import { mergeAndCleanup } from './merge.js';
-import { createEmitter } from 'radiate';
+import type {AsyncStorage} from '../storage/types.js';
+import {isWatchable} from '../storage/types.js';
+import {cleanup} from './cleanup.js';
+import {mergeAndCleanup} from './merge.js';
+import {createEmitter} from 'radiate';
 
 // ============================================================================
 // Readable Store Interface (Svelte store contract)
@@ -85,24 +86,37 @@ export interface SyncableStore<S extends Schema> {
 	readonly account: `0x${string}`;
 
 	/** Set a permanent field value */
-	set<K extends PermanentKeys<S>>(field: K, value: ExtractPermanent<S[K]>): void;
+	set<K extends PermanentKeys<S>>(
+		field: K,
+		value: ExtractPermanent<S[K]>,
+		options?: MutationOptions,
+	): void;
 
 	/** Patch a permanent field with partial updates */
-	patch<K extends PermanentKeys<S>>(field: K, value: DeepPartial<ExtractPermanent<S[K]>>): void;
+	patch<K extends PermanentKeys<S>>(
+		field: K,
+		value: DeepPartial<ExtractPermanent<S[K]>>,
+		options?: MutationOptions,
+	): void;
 
 	/** Add an item to a map field */
 	add<K extends MapKeys<S>>(
 		field: K,
 		key: string,
 		value: ExtractMapItem<S[K]>,
-		options: { deleteAt: number },
+		options: {deleteAt: number; immediate?: boolean},
 	): void;
 
 	/** Update an existing map item */
-	update<K extends MapKeys<S>>(field: K, key: string, value: ExtractMapItem<S[K]>): void;
+	update<K extends MapKeys<S>>(
+		field: K,
+		key: string,
+		value: ExtractMapItem<S[K]>,
+		options?: MutationOptions,
+	): void;
 
 	/** Remove an item from a map field */
-	remove<K extends MapKeys<S>>(field: K, key: string): void;
+	remove<K extends MapKeys<S>>(field: K, key: string, options?: MutationOptions): void;
 
 	/** Subscribe to state changes (Svelte store contract) */
 	subscribe(callback: (state: AsyncState<DataOf<S>>) => void): () => void;
@@ -126,7 +140,7 @@ export interface SyncableStore<S extends Schema> {
 	watchItem<K extends MapKeys<S>>(
 		field: K,
 		key: string,
-	): Readable<(ExtractMapItem<S[K]> & { deleteAt: number }) | undefined>;
+	): Readable<(ExtractMapItem<S[K]> & {deleteAt: number}) | undefined>;
 
 	/** Watch a top-level field reactively */
 	watchField<K extends keyof S>(field: K): Readable<DataOf<S>[K] | undefined>;
@@ -169,19 +183,21 @@ export function createSyncableStore<S extends Schema>(
 
 	// Sync configuration with defaults
 	const debounceMs = syncConfig?.debounceMs ?? 1000;
+	const storageDebounceMs = syncConfig?.storageDebounceMs ?? 100;
 	const maxRetries = syncConfig?.maxRetries ?? 3;
 	const retryBackoffMs = syncConfig?.retryBackoffMs ?? 1000;
 
 	// State
-	let asyncState: AsyncState<DataOf<S>> = { status: 'idle', account: undefined };
+	let asyncState: AsyncState<DataOf<S>> = {status: 'idle', account: undefined};
 	let internalStorage: InternalStorage<S> | null = null;
 
-	// Storage queue state
-	let storageSavePending: {
-		account: `0x${string}`;
-		data: InternalStorage<S>;
-	} | null = null;
-	let currentSavePromise: Promise<void> | null = null;
+	// Storage state - simplified with just boolean flags
+	let storageDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+	let storageSavePending = false;
+	let isStorageSaving = false;
+
+	// Sync state - boolean flag for queue protection
+	let syncPending = false;
 
 	// Internal mutable sync status
 	interface MutableSyncStatus {
@@ -234,25 +250,22 @@ export function createSyncableStore<S extends Schema>(
 
 	// Event type definitions
 	type SyncEventData =
-		| { type: 'pending' }
-		| { type: 'started' }
-		| { type: 'completed'; timestamp: number }
-		| { type: 'failed'; error: Error }
-		| { type: 'offline' }
-		| { type: 'online' };
+		| {type: 'pending'}
+		| {type: 'started'}
+		| {type: 'completed'; timestamp: number}
+		| {type: 'failed'; error: Error}
+		| {type: 'offline'}
+		| {type: 'online'};
 
 	type StorageEventData =
-		| { type: 'saving' }
-		| { type: 'saved'; timestamp: number }
-		| { type: 'failed'; error: Error };
+		| {type: 'saving'}
+		| {type: 'saved'; timestamp: number}
+		| {type: 'failed'; error: Error};
 
-	type StateEventData = { type: 'idle' } | { type: 'loading' } | { type: 'ready' };
+	type StateEventData = {type: 'idle'} | {type: 'loading'} | {type: 'ready'};
 
 	function emitSyncEvent(event: SyncEventData): void {
-		(emitter.emit as (eventName: '$store:sync', data: SyncEventData) => void)(
-			'$store:sync',
-			event,
-		);
+		(emitter.emit as (eventName: '$store:sync', data: SyncEventData) => void)('$store:sync', event);
 	}
 
 	function emitStorageEvent(event: StorageEventData): void {
@@ -303,7 +316,7 @@ export function createSyncableStore<S extends Schema>(
 		if (!syncAdapter) return;
 		syncDirty = true;
 		mutableSyncStatus.hasPendingSync = true;
-		emitSyncEvent({ type: 'pending' });
+		emitSyncEvent({type: 'pending'});
 		scheduleSync();
 	}
 
@@ -322,26 +335,32 @@ export function createSyncableStore<S extends Schema>(
 	async function performSync(retryCount = 0): Promise<void> {
 		if (!syncAdapter || !internalStorage || asyncState.status !== 'ready') return;
 
+		// Prevent concurrent syncs - just set flag
+		if (mutableSyncStatus.isSyncing) {
+			syncPending = true;
+			return;
+		}
+
 		const currentAccount = account;
 
 		try {
 			mutableSyncStatus.isSyncing = true;
 			if (retryCount === 0) {
-				emitSyncEvent({ type: 'started' });
+				emitSyncEvent({type: 'started'});
 			}
 
 			const pullResponse = await syncAdapter.pull(currentAccount);
-	
+
 			// Handle pull error
 			if (!pullResponse.success) {
 				throw new Error(pullResponse.error);
 			}
-	
+
 			let dataToSync = internalStorage;
 			let shouldPush = false;
-	
+
 			const serverData = pullResponse.data ?? createDefaultInternalStorage();
-	
+
 			const {
 				storage: cleanedMerged,
 				changes,
@@ -349,56 +368,59 @@ export function createSyncableStore<S extends Schema>(
 			} = mergeAndCleanup(internalStorage, serverData, schema, clock());
 			dataToSync = cleanedMerged;
 			shouldPush = serverNeedsUpdate;
-	
+
 			if (changes.length > 0) {
 				internalStorage = cleanedMerged;
-				asyncState = { ...asyncState, data: cleanedMerged.data };
-	
+				asyncState = {...asyncState, data: cleanedMerged.data};
+
 				for (const change of changes) {
 					emitter.emit(
 						change.event as keyof StoreEvents<S>,
 						change.data as StoreEvents<S>[keyof StoreEvents<S>],
 					);
 				}
-	
+
 				await saveToStorage(currentAccount, cleanedMerged);
 			}
-	
+
 			if (shouldPush) {
 				const clockBigInt = BigInt(clock());
 				const newCounter =
 					clockBigInt > pullResponse.counter ? clockBigInt : pullResponse.counter + 1n;
-				const pushResponse = await syncAdapter.push(currentAccount, dataToSync, newCounter);
-	
+				// Use internalStorage for push - always has latest state
+				const pushResponse = await syncAdapter.push(currentAccount, internalStorage, newCounter);
+
 				if (!pushResponse.success) {
 					throw new Error(pushResponse.error);
 				}
-	
-				syncDirty = false;
-				mutableSyncStatus.lastSyncedAt = clock();
-				mutableSyncStatus.hasPendingSync = false;
-				mutableSyncStatus.syncError = null;
-				mutableSyncStatus.isSyncing = false;
-				emitSyncEvent({ type: 'completed', timestamp: clock() });
-			} else {
-				syncDirty = false;
-				mutableSyncStatus.lastSyncedAt = clock();
-				mutableSyncStatus.hasPendingSync = false;
-				mutableSyncStatus.syncError = null;
-				mutableSyncStatus.isSyncing = false;
-				emitSyncEvent({ type: 'completed', timestamp: clock() });
 			}
+
+			syncDirty = false;
+			mutableSyncStatus.lastSyncedAt = clock();
+			mutableSyncStatus.hasPendingSync = false;
+			mutableSyncStatus.syncError = null;
+			mutableSyncStatus.isSyncing = false;
+			emitSyncEvent({type: 'completed', timestamp: clock()});
 		} catch (error) {
 			if (retryCount < maxRetries) {
 				const backoffDelay = retryBackoffMs * Math.pow(2, retryCount);
+				// Set isSyncing to false before retry so the retry can proceed
+				mutableSyncStatus.isSyncing = false;
 				setTimeout(() => {
 					performSync(retryCount + 1);
 				}, backoffDelay);
+				return; // Don't process pending yet, retry will handle it
 			} else {
 				mutableSyncStatus.syncError = error as Error;
 				mutableSyncStatus.isSyncing = false;
-				emitSyncEvent({ type: 'failed', error: error as Error });
+				emitSyncEvent({type: 'failed', error: error as Error});
 			}
+		}
+
+		// Process any sync requested during this one
+		if (syncPending) {
+			syncPending = false;
+			performSync();
 		}
 	}
 
@@ -412,43 +434,76 @@ export function createSyncableStore<S extends Schema>(
 		};
 	}
 
-	async function doStorageSave(acc: `0x${string}`, data: InternalStorage<S>): Promise<void> {
+	function scheduleStorageSave(immediate = false): void {
+		storageSavePending = true;
+
+		if (immediate) {
+			// Clear any pending debounce and execute now
+			if (storageDebounceTimer) {
+				clearTimeout(storageDebounceTimer);
+				storageDebounceTimer = undefined;
+			}
+			performStorageSave();
+			return;
+		}
+
+		// Debounce: reset timer on each call
+		if (storageDebounceTimer) {
+			clearTimeout(storageDebounceTimer);
+		}
+
+		storageDebounceTimer = setTimeout(() => {
+			storageDebounceTimer = undefined;
+			performStorageSave();
+		}, storageDebounceMs);
+	}
+
+	async function performStorageSave(): Promise<void> {
+		if (!storageSavePending) return;
+
+		// If already saving, just ensure flag is set - will be processed after
+		if (isStorageSaving) {
+			return;
+		}
+
+		isStorageSaving = true;
+		storageSavePending = false;
+		mutableStorageStatus.isSaving = true;
+		emitStorageEvent({type: 'saving'});
+
 		try {
-			await storage.save(storageKey, data);
-			mutableStorageStatus.lastSavedAt = clock();
-			mutableStorageStatus.storageError = null;
+			// Use internalStorage reference directly - always has latest state
+			if (internalStorage) {
+				await storage.save(storageKey, internalStorage);
+				mutableStorageStatus.lastSavedAt = clock();
+				mutableStorageStatus.storageError = null;
+			}
 		} catch (error) {
 			mutableStorageStatus.storageError = error as Error;
-			emitStorageEvent({ type: 'failed', error: error as Error });
+			emitStorageEvent({type: 'failed', error: error as Error});
+		} finally {
+			isStorageSaving = false;
+
+			// Process any changes that came in during save
+			if (storageSavePending) {
+				await performStorageSave();
+			} else {
+				mutableStorageStatus.isSaving = false;
+				emitStorageEvent({
+					type: 'saved',
+					timestamp: mutableStorageStatus.lastSavedAt ?? clock(),
+				});
+			}
 		}
 	}
 
-	async function processStorageSave(acc: `0x${string}`, data: InternalStorage<S>): Promise<void> {
-		await doStorageSave(acc, data);
-
-		if (storageSavePending) {
-			const pending = storageSavePending;
-			storageSavePending = null;
-			emitStorageEvent({ type: 'saving' });
-			await processStorageSave(pending.account, pending.data);
-		} else {
-			mutableStorageStatus.isSaving = false;
-			emitStorageEvent({ type: 'saved', timestamp: mutableStorageStatus.lastSavedAt ?? clock() });
+	// Legacy wrapper for internal calls that need a promise
+	async function saveToStorage(acc: `0x${string}`, data: InternalStorage<S>): Promise<void> {
+		scheduleStorageSave(true); // Use immediate for internal sync operations
+		// Wait for save to complete
+		while (mutableStorageStatus.isSaving) {
+			await new Promise((r) => setTimeout(r, 10));
 		}
-	}
-
-	function saveToStorage(acc: `0x${string}`, data: InternalStorage<S>): Promise<void> {
-		if (mutableStorageStatus.isSaving) {
-			storageSavePending = { account: acc, data };
-			return currentSavePromise!;
-		}
-
-		mutableStorageStatus.isSaving = true;
-		storageSavePending = null;
-		emitStorageEvent({ type: 'saving' });
-
-		currentSavePromise = processStorageSave(acc, data);
-		return currentSavePromise;
 	}
 
 	function setupStorageWatch(): void {
@@ -456,7 +511,7 @@ export function createSyncableStore<S extends Schema>(
 			unwatchStorage = storage.watch(storageKey, async (_, newValue) => {
 				if (!newValue || !internalStorage) return;
 
-				const { storage: cleanedMerged, changes } = mergeAndCleanup(
+				const {storage: cleanedMerged, changes} = mergeAndCleanup(
 					internalStorage,
 					newValue,
 					schema,
@@ -467,7 +522,7 @@ export function createSyncableStore<S extends Schema>(
 					internalStorage = cleanedMerged;
 
 					if (asyncState.status === 'ready') {
-						asyncState = { ...asyncState, data: cleanedMerged.data };
+						asyncState = {...asyncState, data: cleanedMerged.data};
 					}
 
 					for (const change of changes) {
@@ -494,14 +549,14 @@ export function createSyncableStore<S extends Schema>(
 		if (syncConfig?.syncOnReconnect !== false && typeof window !== 'undefined') {
 			handleOnline = () => {
 				mutableSyncStatus.isOnline = true;
-				emitSyncEvent({ type: 'online' });
+				emitSyncEvent({type: 'online'});
 				if (asyncState.status === 'ready') {
 					performSync();
 				}
 			};
 			handleOffline = () => {
 				mutableSyncStatus.isOnline = false;
-				emitSyncEvent({ type: 'offline' });
+				emitSyncEvent({type: 'offline'});
 			};
 			window.addEventListener('online', handleOnline);
 			window.addEventListener('offline', handleOffline);
@@ -535,8 +590,8 @@ export function createSyncableStore<S extends Schema>(
 			throw new Error('Store already loaded or loading');
 		}
 
-		asyncState = { status: 'loading', account };
-		emitStateEvent({ type: 'loading' });
+		asyncState = {status: 'loading', account};
+		emitStateEvent({type: 'loading'});
 
 		const localData = await storage.load(storageKey);
 
@@ -552,12 +607,12 @@ export function createSyncableStore<S extends Schema>(
 							throw new Error(`Missing migration for version ${v}`);
 						}
 						migrated = migration(migrated);
-						(migrated as { $version: number }).$version = v;
+						(migrated as {$version: number}).$version = v;
 					}
 					internalStorage = migrated as InternalStorage<S>;
 				} catch (error) {
 					mutableStorageStatus.storageError = error as Error;
-					emitStorageEvent({ type: 'failed', error: error as Error });
+					emitStorageEvent({type: 'failed', error: error as Error});
 					return;
 				}
 			} else {
@@ -567,7 +622,11 @@ export function createSyncableStore<S extends Schema>(
 			internalStorage = createDefaultInternalStorage();
 		}
 
-		const { storage: cleanedStorage, changes, tombstonesDeleted } = cleanup(internalStorage, schema, clock());
+		const {
+			storage: cleanedStorage,
+			changes,
+			tombstonesDeleted,
+		} = cleanup(internalStorage, schema, clock());
 		internalStorage = cleanedStorage;
 
 		// Only save to storage if cleanup removed items or tombstones
@@ -580,7 +639,7 @@ export function createSyncableStore<S extends Schema>(
 			account,
 			data: internalStorage.data,
 		};
-		emitStateEvent({ type: 'ready' });
+		emitStateEvent({type: 'ready'});
 
 		if (syncAdapter) {
 			performSync();
@@ -599,7 +658,11 @@ export function createSyncableStore<S extends Schema>(
 			return account;
 		},
 
-		set<K extends PermanentKeys<S>>(field: K, value: ExtractPermanent<S[K]>): void {
+		set<K extends PermanentKeys<S>>(
+			field: K,
+			value: ExtractPermanent<S[K]>,
+			options?: MutationOptions,
+		): void {
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
@@ -608,18 +671,22 @@ export function createSyncableStore<S extends Schema>(
 			(internalStorage.data as Record<string, unknown>)[field as string] = value;
 			(internalStorage.$timestamps as Record<string, number>)[field as string] = now;
 
-			asyncState = { ...asyncState, data: { ...internalStorage.data } };
+			asyncState = {...asyncState, data: {...internalStorage.data}};
 
 			emitter.emit(
 				`${String(field)}:changed` as keyof StoreEvents<S>,
 				value as StoreEvents<S>[keyof StoreEvents<S>],
 			);
 
-			saveToStorage(account, internalStorage);
+			scheduleStorageSave(options?.immediate);
 			markDirty();
 		},
 
-		patch<K extends PermanentKeys<S>>(field: K, value: DeepPartial<ExtractPermanent<S[K]>>): void {
+		patch<K extends PermanentKeys<S>>(
+			field: K,
+			value: DeepPartial<ExtractPermanent<S[K]>>,
+			options?: MutationOptions,
+		): void {
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
@@ -631,14 +698,14 @@ export function createSyncableStore<S extends Schema>(
 			(internalStorage.data as Record<string, unknown>)[field as string] = merged;
 			(internalStorage.$timestamps as Record<string, number>)[field as string] = now;
 
-			asyncState = { ...asyncState, data: { ...internalStorage.data } };
+			asyncState = {...asyncState, data: {...internalStorage.data}};
 
 			emitter.emit(
 				`${String(field)}:changed` as keyof StoreEvents<S>,
 				merged as StoreEvents<S>[keyof StoreEvents<S>],
 			);
 
-			saveToStorage(account, internalStorage);
+			scheduleStorageSave(options?.immediate);
 			markDirty();
 		},
 
@@ -646,7 +713,7 @@ export function createSyncableStore<S extends Schema>(
 			field: K,
 			key: string,
 			value: ExtractMapItem<S[K]>,
-			options: { deleteAt: number },
+			options: {deleteAt: number; immediate?: boolean},
 		): void {
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
@@ -668,28 +735,32 @@ export function createSyncableStore<S extends Schema>(
 			timestamps[key] = now;
 
 			(internalStorage.data as Record<string, unknown>)[field as string] = items;
-			(internalStorage.$itemTimestamps as Record<string, Record<string, number>>)[
-				field as string
-			] = timestamps;
+			(internalStorage.$itemTimestamps as Record<string, Record<string, number>>)[field as string] =
+				timestamps;
 
-			asyncState = { ...asyncState, data: { ...internalStorage.data } };
+			asyncState = {...asyncState, data: {...internalStorage.data}};
 
 			emitter.emit(
 				`${String(field)}:added` as keyof StoreEvents<S>,
-				{ key, item: itemWithDeleteAt } as StoreEvents<S>[keyof StoreEvents<S>],
+				{key, item: itemWithDeleteAt} as StoreEvents<S>[keyof StoreEvents<S>],
 			);
 
-			saveToStorage(account, internalStorage);
+			scheduleStorageSave(options.immediate);
 			markDirty();
 		},
 
-		update<K extends MapKeys<S>>(field: K, key: string, value: ExtractMapItem<S[K]>): void {
+		update<K extends MapKeys<S>>(
+			field: K,
+			key: string,
+			value: ExtractMapItem<S[K]>,
+			options?: MutationOptions,
+		): void {
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
 
 			const items = ((internalStorage.data as Record<string, unknown>)[field as string] ??
-				{}) as Record<string, { deleteAt: number }>;
+				{}) as Record<string, {deleteAt: number}>;
 			const existing = items[key];
 
 			if (!existing) {
@@ -702,33 +773,32 @@ export function createSyncableStore<S extends Schema>(
 					field as string
 				] ?? {};
 
-			const updatedItem = { ...(value as object), deleteAt: existing.deleteAt };
+			const updatedItem = {...(value as object), deleteAt: existing.deleteAt};
 			items[key] = updatedItem;
 			timestamps[key] = now;
 
 			(internalStorage.data as Record<string, unknown>)[field as string] = items;
-			(internalStorage.$itemTimestamps as Record<string, Record<string, number>>)[
-				field as string
-			] = timestamps;
+			(internalStorage.$itemTimestamps as Record<string, Record<string, number>>)[field as string] =
+				timestamps;
 
-			asyncState = { ...asyncState, data: { ...internalStorage.data } };
+			asyncState = {...asyncState, data: {...internalStorage.data}};
 
 			emitter.emit(
 				`${String(field)}:updated` as keyof StoreEvents<S>,
-				{ key, item: updatedItem } as StoreEvents<S>[keyof StoreEvents<S>],
+				{key, item: updatedItem} as StoreEvents<S>[keyof StoreEvents<S>],
 			);
 
-			saveToStorage(account, internalStorage);
+			scheduleStorageSave(options?.immediate);
 			markDirty();
 		},
 
-		remove<K extends MapKeys<S>>(field: K, key: string): void {
+		remove<K extends MapKeys<S>>(field: K, key: string, options?: MutationOptions): void {
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
 
 			const items = ((internalStorage.data as Record<string, unknown>)[field as string] ??
-				{}) as Record<string, { deleteAt: number }>;
+				{}) as Record<string, {deleteAt: number}>;
 			const existing = items[key];
 
 			if (!existing) {
@@ -750,14 +820,14 @@ export function createSyncableStore<S extends Schema>(
 				] ?? {};
 			delete timestamps[key];
 
-			asyncState = { ...asyncState, data: { ...internalStorage.data } };
+			asyncState = {...asyncState, data: {...internalStorage.data}};
 
 			emitter.emit(
 				`${String(field)}:removed` as keyof StoreEvents<S>,
-				{ key, item: existing } as StoreEvents<S>[keyof StoreEvents<S>],
+				{key, item: existing} as StoreEvents<S>[keyof StoreEvents<S>],
 			);
 
-			saveToStorage(account, internalStorage);
+			scheduleStorageSave(options?.immediate);
 			markDirty();
 		},
 
@@ -777,6 +847,11 @@ export function createSyncableStore<S extends Schema>(
 		stop(): void {
 			unwatchStorage?.();
 			unwatchStorage = undefined;
+
+			if (storageDebounceTimer) {
+				clearTimeout(storageDebounceTimer);
+				storageDebounceTimer = undefined;
+			}
 
 			if (syncDebounceTimer) {
 				clearTimeout(syncDebounceTimer);
@@ -811,8 +886,8 @@ export function createSyncableStore<S extends Schema>(
 		watchItem<K extends MapKeys<S>>(
 			field: K,
 			key: string,
-		): Readable<(ExtractMapItem<S[K]> & { deleteAt: number }) | undefined> {
-			type ItemType = (ExtractMapItem<S[K]> & { deleteAt: number }) | undefined;
+		): Readable<(ExtractMapItem<S[K]> & {deleteAt: number}) | undefined> {
+			type ItemType = (ExtractMapItem<S[K]> & {deleteAt: number}) | undefined;
 
 			const cacheKey = `${String(field)}:${key}`;
 			const cached = itemStoreCache.get(cacheKey);
@@ -830,24 +905,21 @@ export function createSyncableStore<S extends Schema>(
 
 					const unsubState = emitter.on('$store:state', () => callback(getCurrentValue()));
 
-					const unsubAdded = emitter.on(
-						`${String(field)}:added` as keyof StoreEvents<S>,
-						(e) => {
-							const event = e as { key: string; item: unknown };
-							if (event.key === key) callback(event.item as ItemType);
-						},
-					);
+					const unsubAdded = emitter.on(`${String(field)}:added` as keyof StoreEvents<S>, (e) => {
+						const event = e as {key: string; item: unknown};
+						if (event.key === key) callback(event.item as ItemType);
+					});
 					const unsubUpdated = emitter.on(
 						`${String(field)}:updated` as keyof StoreEvents<S>,
 						(e) => {
-							const event = e as { key: string; item: unknown };
+							const event = e as {key: string; item: unknown};
 							if (event.key === key) callback(event.item as ItemType);
 						},
 					);
 					const unsubRemoved = emitter.on(
 						`${String(field)}:removed` as keyof StoreEvents<S>,
 						(e) => {
-							const event = e as { key: string };
+							const event = e as {key: string};
 							if (event.key === key) callback(undefined);
 						},
 					);
@@ -936,14 +1008,27 @@ export function createSyncableStore<S extends Schema>(
 			}
 
 			mutableStorageStatus.storageError = null;
-			emitStorageEvent({ type: 'saved', timestamp: clock() });
+			emitStorageEvent({type: 'saved', timestamp: clock()});
 
-			asyncState = { status: 'idle', account: undefined };
+			asyncState = {status: 'idle', account: undefined};
 			load();
 		},
 
 		async flush(timeoutMs = 30000): Promise<void> {
 			const startTime = clock();
+
+			// Clear any pending debounce and force immediate save
+			if (storageDebounceTimer) {
+				clearTimeout(storageDebounceTimer);
+				storageDebounceTimer = undefined;
+			}
+
+			// Trigger save if there's pending data
+			if (storageSavePending) {
+				await performStorageSave();
+			}
+
+			// Wait for any in-progress save to complete
 			while (mutableStorageStatus.isSaving) {
 				if (clock() - startTime > timeoutMs) {
 					throw new Error(`flush() timed out after ${timeoutMs}ms`);
@@ -973,7 +1058,7 @@ function deepMerge<T>(target: T, source: DeepPartial<T>): T {
 		return source as T;
 	}
 
-	const result = { ...target };
+	const result = {...target};
 
 	for (const key of Object.keys(source) as (keyof T)[]) {
 		const sourceValue = source[key];

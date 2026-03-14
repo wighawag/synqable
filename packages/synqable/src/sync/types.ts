@@ -13,12 +13,12 @@
 /**
  * Marker type for permanent fields - updated as a whole unit.
  */
-export type PermanentField<T> = { __type: 'permanent'; __value?: T };
+export type PermanentField<T> = {__type: 'permanent'; __value?: T};
 
 /**
  * Marker type for map fields - items merged individually.
  */
-export type MapField<T> = { __type: 'map'; __item?: T };
+export type MapField<T> = {__type: 'map'; __item?: T};
 
 // ============================================================================
 // Schema Definition Helpers
@@ -29,7 +29,7 @@ export type MapField<T> = { __type: 'map'; __item?: T };
  * Permanent fields are updated as a whole and never deleted.
  */
 export function permanent<T>(): PermanentField<T> {
-	return { __type: 'permanent' } as PermanentField<T>;
+	return {__type: 'permanent'} as PermanentField<T>;
 }
 
 /**
@@ -37,7 +37,7 @@ export function permanent<T>(): PermanentField<T> {
  * Map fields contain items that are individually tracked with timestamps and deleteAt.
  */
 export function map<T>(): MapField<T> {
-	return { __type: 'map' } as MapField<T>;
+	return {__type: 'map'} as MapField<T>;
 }
 
 /**
@@ -88,14 +88,14 @@ export type DataOf<S extends Schema> = {
 	[K in keyof S]: S[K] extends PermanentField<infer T>
 		? T
 		: S[K] extends MapField<infer T>
-			? Record<string, T & { deleteAt: number }>
+			? Record<string, T & {deleteAt: number}>
 			: never;
 };
 
 /**
  * Deep partial type for patch operations.
  */
-export type DeepPartial<T> = T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
+export type DeepPartial<T> = T extends object ? {[K in keyof T]?: DeepPartial<T[K]>} : T;
 
 /**
  * Deep readonly type to prevent direct mutation of nested data.
@@ -107,7 +107,7 @@ export type DeepReadonly<T> = T extends (infer U)[]
 		: T extends Set<infer U>
 			? ReadonlySet<DeepReadonly<U>>
 			: T extends object
-				? { readonly [K in keyof T]: DeepReadonly<T[K]> }
+				? {readonly [K in keyof T]: DeepReadonly<T[K]>}
 				: T;
 
 // ============================================================================
@@ -147,7 +147,7 @@ export type InternalStorage<S extends Schema> = {
 /**
  * State lifecycle events - emitted on async state transitions.
  */
-export type StateEvent = { type: 'idle' } | { type: 'loading' } | { type: 'ready' };
+export type StateEvent = {type: 'idle'} | {type: 'loading'} | {type: 'ready'};
 
 // ============================================================================
 // Sync Status and Events
@@ -180,12 +180,12 @@ export interface SyncStatus {
  * Sync lifecycle events - point-in-time notifications.
  */
 export type SyncEvent =
-	| { type: 'pending' }
-	| { type: 'started' }
-	| { type: 'completed'; timestamp: number }
-	| { type: 'failed'; error: Error }
-	| { type: 'offline' }
-	| { type: 'online' };
+	| {type: 'pending'}
+	| {type: 'started'}
+	| {type: 'completed'; timestamp: number}
+	| {type: 'failed'; error: Error}
+	| {type: 'offline'}
+	| {type: 'online'};
 
 // ============================================================================
 // Storage Status and Events
@@ -212,9 +212,9 @@ export interface StorageStatus {
  * Storage lifecycle events - point-in-time notifications.
  */
 export type StorageEvent =
-	| { type: 'saving' }
-	| { type: 'saved'; timestamp: number }
-	| { type: 'failed'; error: Error };
+	| {type: 'saving'}
+	| {type: 'saved'; timestamp: number}
+	| {type: 'failed'; error: Error};
 
 // ============================================================================
 // Combined Status Utility
@@ -264,24 +264,27 @@ type PermanentEvents<S extends Schema> = {
 type MapEvents<S extends Schema> = {
 	[K in MapKeys<S> as `${K & string}:added`]: {
 		key: string;
-		item: ExtractMapItem<S[K]> & { deleteAt: number };
+		item: ExtractMapItem<S[K]> & {deleteAt: number};
 	};
 } & {
 	[K in MapKeys<S> as `${K & string}:updated`]: {
 		key: string;
-		item: ExtractMapItem<S[K]> & { deleteAt: number };
+		item: ExtractMapItem<S[K]> & {deleteAt: number};
 	};
 } & {
 	[K in MapKeys<S> as `${K & string}:removed`]: {
 		key: string;
-		item: ExtractMapItem<S[K]> & { deleteAt: number };
+		item: ExtractMapItem<S[K]> & {deleteAt: number};
 	};
 };
 
 /**
  * Schema-derived events.
  */
-type SchemaEvents<S extends Schema> = Omit<PermanentEvents<S> & MapEvents<S>, keyof BaseStoreEvents<S>>;
+type SchemaEvents<S extends Schema> = Omit<
+	PermanentEvents<S> & MapEvents<S>,
+	keyof BaseStoreEvents<S>
+>;
 
 /**
  * Complete event map for a store.
@@ -296,9 +299,9 @@ export type StoreEvents<S extends Schema> = BaseStoreEvents<S> & SchemaEvents<S>
  * Async state for store data.
  */
 export type AsyncState<T> =
-	| { status: 'idle'; account: undefined }
-	| { status: 'loading'; account: `0x${string}` }
-	| { status: 'ready'; account: `0x${string}`; data: T };
+	| {status: 'idle'; account: undefined}
+	| {status: 'loading'; account: `0x${string}`}
+	| {status: 'ready'; account: `0x${string}`; data: T};
 
 // ============================================================================
 // Change Tracking Types
@@ -308,10 +311,10 @@ export type AsyncState<T> =
  * Represents a change detected during merge.
  */
 export type StoreChange =
-	| { event: `${string}:changed`; data: unknown }
-	| { event: `${string}:added`; data: { key: string; item: unknown } }
-	| { event: `${string}:updated`; data: { key: string; item: unknown } }
-	| { event: `${string}:removed`; data: { key: string; item: unknown } };
+	| {event: `${string}:changed`; data: unknown}
+	| {event: `${string}:added`; data: {key: string; item: unknown}}
+	| {event: `${string}:updated`; data: {key: string; item: unknown}}
+	| {event: `${string}:removed`; data: {key: string; item: unknown}};
 
 // ============================================================================
 // Server Sync Types
@@ -357,7 +360,6 @@ export interface PushResponseSuccess {
 	/** Server's current counter after the push */
 	currentCounter?: bigint;
 }
-
 
 // TODO should counter be optional for PushResponse ?
 
@@ -410,6 +412,9 @@ export interface SyncConfig {
 	/** Debounce delay for pushing changes (default: 1000ms) */
 	debounceMs?: number;
 
+	/** Debounce delay for local storage (default: 100ms) */
+	storageDebounceMs?: number;
+
 	/** Interval for periodic sync (default: 30000ms, 0 to disable) */
 	intervalMs?: number;
 
@@ -424,4 +429,15 @@ export interface SyncConfig {
 
 	/** Initial backoff delay for retries (default: 1000ms) */
 	retryBackoffMs?: number;
+}
+
+/**
+ * Options for mutation operations.
+ */
+export interface MutationOptions {
+	/**
+	 * Force immediate storage save, bypassing debounce.
+	 * Use for critical data that must persist immediately.
+	 */
+	immediate?: boolean;
 }

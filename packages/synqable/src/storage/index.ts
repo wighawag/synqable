@@ -5,7 +5,4 @@ export {
 	isWatchable,
 } from './types.js';
 
-export {
-	createLocalStorageAdapter,
-	type LocalStorageAdapterOptions,
-} from './LocalStorageAdapter.js';
+export {createLocalStorageAdapter, type LocalStorageAdapterOptions} from './LocalStorageAdapter.js';
