@@ -1,5 +1,5 @@
 /**
- * Simple Syncable Store - Merge Algorithm
+ * Syncable Store - Merge Algorithm
  *
  * Deterministic merge using "higher timestamp wins" with tiebreaker.
  */

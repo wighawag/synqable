@@ -1,5 +1,5 @@
 /**
- * Simple Syncable Store - Cleanup Algorithm
+ * Syncable Store - Cleanup Algorithm
  *
  * Removes expired items and tombstones from the store.
  */

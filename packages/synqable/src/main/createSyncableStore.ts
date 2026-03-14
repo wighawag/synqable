@@ -9,7 +9,6 @@ import type {
 	InternalStorage,
 	DataOf,
 	AsyncState,
-	SyncStatus,
 	StorageStatus,
 	PermanentKeys,
 	MapKeys,
@@ -19,10 +18,10 @@ import type {
 	DeepReadonly,
 	StoreChange,
 	StoreEvents,
-	SyncAdapter,
-	SyncConfig,
 	MutationOptions,
 } from './types.js';
+
+import type {SyncStatus, SyncAdapter, SyncConfig, StoreEventsWithSync} from '../sync/types.js';
 
 import type {AsyncStorage} from '../storage/types.js';
 import {isWatchable} from '../storage/types.js';
@@ -122,13 +121,16 @@ export interface SyncableStore<S extends Schema> {
 	subscribe(callback: (state: AsyncState<DataOf<S>>) => void): () => void;
 
 	/** Subscribe to type-safe events */
-	on<E extends keyof StoreEvents<S>>(
+	on<E extends keyof StoreEventsWithSync<S>>(
 		event: E,
-		callback: (data: StoreEvents<S>[E]) => void,
+		callback: (data: StoreEventsWithSync<S>[E]) => void,
 	): () => void;
 
 	/** Unsubscribe from events */
-	off<E extends keyof StoreEvents<S>>(event: E, callback: (data: StoreEvents<S>[E]) => void): void;
+	off<E extends keyof StoreEventsWithSync<S>>(
+		event: E,
+		callback: (data: StoreEventsWithSync<S>[E]) => void,
+	): void;
 
 	/** Load data from storage - must be called to initialize */
 	load(): Promise<void>;
@@ -246,7 +248,7 @@ export function createSyncableStore<S extends Schema>(
 	const storageStatus: StorageStatus = mutableStorageStatus;
 
 	// Event emitter
-	const emitter = createEmitter<StoreEvents<S>>();
+	const emitter = createEmitter<StoreEventsWithSync<S>>();
 
 	// Event type definitions
 	type SyncEventData =
@@ -375,8 +377,8 @@ export function createSyncableStore<S extends Schema>(
 
 				for (const change of changes) {
 					emitter.emit(
-						change.event as keyof StoreEvents<S>,
-						change.data as StoreEvents<S>[keyof StoreEvents<S>],
+						change.event as keyof StoreEventsWithSync<S>,
+						change.data as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
 					);
 				}
 
@@ -518,8 +520,8 @@ export function createSyncableStore<S extends Schema>(
 
 					for (const change of changes) {
 						emitter.emit(
-							change.event as keyof StoreEvents<S>,
-							change.data as StoreEvents<S>[keyof StoreEvents<S>],
+							change.event as keyof StoreEventsWithSync<S>,
+							change.data as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
 						);
 					}
 				}
@@ -662,8 +664,8 @@ export function createSyncableStore<S extends Schema>(
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
 			emitter.emit(
-				`${String(field)}:changed` as keyof StoreEvents<S>,
-				value as StoreEvents<S>[keyof StoreEvents<S>],
+				`${String(field)}:changed` as keyof StoreEventsWithSync<S>,
+				value as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
 			);
 
 			scheduleStorageSave(options?.immediate);
@@ -689,8 +691,8 @@ export function createSyncableStore<S extends Schema>(
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
 			emitter.emit(
-				`${String(field)}:changed` as keyof StoreEvents<S>,
-				merged as StoreEvents<S>[keyof StoreEvents<S>],
+				`${String(field)}:changed` as keyof StoreEventsWithSync<S>,
+				merged as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
 			);
 
 			scheduleStorageSave(options?.immediate);
@@ -729,8 +731,8 @@ export function createSyncableStore<S extends Schema>(
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
 			emitter.emit(
-				`${String(field)}:added` as keyof StoreEvents<S>,
-				{key, item: itemWithDeleteAt} as StoreEvents<S>[keyof StoreEvents<S>],
+				`${String(field)}:added` as keyof StoreEventsWithSync<S>,
+				{key, item: itemWithDeleteAt} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
 			);
 
 			scheduleStorageSave(options.immediate);
@@ -772,8 +774,8 @@ export function createSyncableStore<S extends Schema>(
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
 			emitter.emit(
-				`${String(field)}:updated` as keyof StoreEvents<S>,
-				{key, item: updatedItem} as StoreEvents<S>[keyof StoreEvents<S>],
+				`${String(field)}:updated` as keyof StoreEventsWithSync<S>,
+				{key, item: updatedItem} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
 			);
 
 			scheduleStorageSave(options?.immediate);
@@ -811,8 +813,8 @@ export function createSyncableStore<S extends Schema>(
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
 			emitter.emit(
-				`${String(field)}:removed` as keyof StoreEvents<S>,
-				{key, item: existing} as StoreEvents<S>[keyof StoreEvents<S>],
+				`${String(field)}:removed` as keyof StoreEventsWithSync<S>,
+				{key, item: existing} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
 			);
 
 			scheduleStorageSave(options?.immediate);
@@ -893,19 +895,22 @@ export function createSyncableStore<S extends Schema>(
 
 					const unsubState = emitter.on('$store:state', () => callback(getCurrentValue()));
 
-					const unsubAdded = emitter.on(`${String(field)}:added` as keyof StoreEvents<S>, (e) => {
-						const event = e as {key: string; item: unknown};
-						if (event.key === key) callback(event.item as ItemType);
-					});
+					const unsubAdded = emitter.on(
+						`${String(field)}:added` as keyof StoreEventsWithSync<S>,
+						(e) => {
+							const event = e as {key: string; item: unknown};
+							if (event.key === key) callback(event.item as ItemType);
+						},
+					);
 					const unsubUpdated = emitter.on(
-						`${String(field)}:updated` as keyof StoreEvents<S>,
+						`${String(field)}:updated` as keyof StoreEventsWithSync<S>,
 						(e) => {
 							const event = e as {key: string; item: unknown};
 							if (event.key === key) callback(event.item as ItemType);
 						},
 					);
 					const unsubRemoved = emitter.on(
-						`${String(field)}:removed` as keyof StoreEvents<S>,
+						`${String(field)}:removed` as keyof StoreEventsWithSync<S>,
 						(e) => {
 							const event = e as {key: string};
 							if (event.key === key) callback(undefined);
@@ -950,18 +955,18 @@ export function createSyncableStore<S extends Schema>(
 
 					if (isMap) {
 						unsubs.push(
-							emitter.on(`${String(field)}:added` as keyof StoreEvents<S>, () => {
+							emitter.on(`${String(field)}:added` as keyof StoreEventsWithSync<S>, () => {
 								callback(getCurrentValue());
 							}),
 						);
 						unsubs.push(
-							emitter.on(`${String(field)}:removed` as keyof StoreEvents<S>, () => {
+							emitter.on(`${String(field)}:removed` as keyof StoreEventsWithSync<S>, () => {
 								callback(getCurrentValue());
 							}),
 						);
 					} else {
 						unsubs.push(
-							emitter.on(`${String(field)}:changed` as keyof StoreEvents<S>, () => {
+							emitter.on(`${String(field)}:changed` as keyof StoreEventsWithSync<S>, () => {
 								callback(getCurrentValue());
 							}),
 						);
