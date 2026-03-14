@@ -615,12 +615,12 @@ export function createSyncableStore<S extends Schema>(
 
 		const {
 			storage: cleanedStorage,
-			changes,
-			tombstonesDeleted,
+			// changes,
+			// tombstonesDeleted,
 		} = cleanup(internalStorage, schema, clock());
 		internalStorage = cleanedStorage;
 
-		// we could save to storage, here if cleanup has deleted items, but there is no point
+		// Cleanup results will be persisted when the next mutation or sync occurs
 
 		asyncState = {
 			status: 'ready',
