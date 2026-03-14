@@ -87,7 +87,7 @@ function createMockFactory(storage: AsyncStorage<InternalStorage<TestSchema>>): 
 				schema,
 				account,
 				storage: {
-					adapter: storage,
+					adapterFactory: () => storage,
 					key: `test-${account}`,
 				},
 				defaultData: () => ({settings: {theme: 'dark'}, operations: {}}),

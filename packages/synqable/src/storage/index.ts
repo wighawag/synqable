@@ -4,6 +4,7 @@ export {
 	type StorageChangeCallback,
 	type StorageOptions,
 	type StorageConfig,
+	type StorageAdapterFactory,
 	isWatchable,
 } from './types.js';
 

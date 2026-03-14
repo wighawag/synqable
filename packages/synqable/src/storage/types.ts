@@ -7,11 +7,17 @@ export interface StorageOptions {
 }
 
 /**
- * Combined storage configuration with adapter, key, and options.
+ * Factory function that creates a storage adapter.
+ * @param privateKey - Optional encryption key. If provided, data should be encrypted.
+ */
+export type StorageAdapterFactory<T> = (privateKey?: `0x${string}`) => AsyncStorage<T>;
+
+/**
+ * Combined storage configuration with adapter factory, key, and options.
  */
 export interface StorageConfig<T> {
-	/** Storage adapter */
-	adapter: AsyncStorage<T>;
+	/** Factory to create storage adapter (receives optional privateKey) */
+	adapterFactory: StorageAdapterFactory<T>;
 
 	/** Storage key for this store instance */
 	key: string;

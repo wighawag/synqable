@@ -10,8 +10,9 @@ export function createSyncableStoreFactory<S extends Schema>(
 		return createSyncableStore({
 			schema: config.schema,
 			account,
+			// Note: privateKey is NOT passed here - that comes from MultiAccount in later phase
 			storage: {
-				adapter: config.storage.adapter,
+				adapterFactory: config.storage.adapterFactory,
 				key: config.storage.key(account),
 				options: config.storage.options,
 			},

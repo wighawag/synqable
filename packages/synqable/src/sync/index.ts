@@ -9,6 +9,7 @@ export {
 	type SyncStatus,
 	type SyncEvent,
 	type SyncAdapter,
+	type SyncAdapterFactory,
 	type SyncOptions,
 	type SyncConfig,
 	type StoreEventsWithSync,

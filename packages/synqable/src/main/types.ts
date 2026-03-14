@@ -304,7 +304,10 @@ export interface SyncableStoreConfig<S extends Schema> {
 	/** Static account address - store is bound to this account */
 	account: `0x${string}`;
 
-	/** Storage configuration: adapter, key, and options */
+	/** Optional private key for encryption */
+	privateKey?: `0x${string}`;
+
+	/** Storage configuration: adapter factory, key, and options */
 	storage: StorageConfig<InternalStorage<S>>;
 
 	/** Default data factory */

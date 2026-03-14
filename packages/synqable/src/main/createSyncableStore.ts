@@ -35,6 +35,7 @@ export function createSyncableStore<S extends Schema>(
 	const {
 		schema,
 		account,
+		privateKey,
 		storage: storageConfig,
 		defaultData,
 		clock = Date.now,
@@ -43,13 +44,13 @@ export function createSyncableStore<S extends Schema>(
 		migrations,
 	} = config;
 
-	// Extract storage components
-	const storageAdapter = storageConfig.adapter;
+	// Extract storage components - call factory with privateKey
+	const storageAdapter = storageConfig.adapterFactory(privateKey);
 	const storageKey = storageConfig.key;
 	const storageDebounceMs = storageConfig.options?.debounceMs ?? 100;
 
-	// Extract sync components
-	const syncAdapter = syncConfig?.adapter;
+	// Extract sync components - call factory with privateKey
+	const syncAdapter = syncConfig?.adapterFactory(privateKey);
 	const syncOptions = syncConfig?.options;
 
 	// Sync configuration with defaults

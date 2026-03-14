@@ -51,7 +51,7 @@ const store = createSyncableStore({
   schema,
   account: '0x1234...', // Ethereum-style address
   storage: {
-    adapter: createLocalStorageAdapter(),
+    adapterFactory: () => createLocalStorageAdapter(),
     key: 'my-app-data',
   },
   defaultData: () => ({
@@ -107,7 +107,7 @@ import {
 const factory = createSyncableStoreFactory({
   schema,
   storage: {
-    adapter: createLocalStorageAdapter(),
+    adapterFactory: () => createLocalStorageAdapter(),
     key: (account) => `my-app-${account}`,
   },
   defaultData: () => ({
@@ -158,10 +158,10 @@ const syncAdapter: SyncAdapter<typeof schema> = {
 const store = createSyncableStore({
   schema,
   account: '0x1234...',
-  storage: { adapter: createLocalStorageAdapter(), key: 'my-app' },
+  storage: { adapterFactory: () => createLocalStorageAdapter(), key: 'my-app' },
   defaultData: () => ({ settings: {}, tasks: {} }),
   sync: {
-    adapter: syncAdapter,
+    adapterFactory: () => syncAdapter,
     options: {
       debounceMs: 1000,      // Debounce pushes
       intervalMs: 30000,     // Periodic sync
