@@ -325,11 +325,20 @@ export function createMultiAccountStore<S extends Schema>(
 	);
 
 	// Watch methods
-	function watchField<K extends keyof S>(field: K): Readable<DataOf<S>[K] | undefined> {
+	function watchField<K extends keyof S>(
+		field: K,
+	): S[K] extends MapField<unknown> ? Readable<DataOf<S>[K]> : Readable<DataOf<S>[K] | undefined> {
+		// When there's no store, the underlying store.watchField already handles returning
+		// the correct default (empty {} for maps, undefined for permanent fields).
+		// Note: When no account is connected, we use undefined as default which will
+		// be returned for all fields. This is a limitation since we don't have schema access.
+		// Once an account connects, the underlying store provides correct typing.
 		return createDerivedReadable<DataOf<S>[K] | undefined>(
 			(store) => store.watchField(field),
 			undefined,
-		);
+		) as S[K] extends MapField<unknown>
+			? Readable<DataOf<S>[K]>
+			: Readable<DataOf<S>[K] | undefined>;
 	}
 
 	function watchItem<K extends MapKeys<S>>(
