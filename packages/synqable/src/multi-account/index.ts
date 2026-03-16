@@ -5,7 +5,7 @@
  * with race condition protection and lazy lifecycle management.
  */
 
-import type {Schema, SyncableStore, Readable} from '../main/types.js';
+import type {Schema, SyncableStore, Readable, AsyncState, DataOf} from '../main/types.js';
 import type {
 	Account,
 	AccountWithSigner,
@@ -84,12 +84,28 @@ export function createMultiAccountStore<S extends Schema>(
 	let current: Account | AccountWithSigner | undefined;
 	let unsubscribeAccount: (() => void) | undefined;
 
-	// Subscribers
+	// Subscribers for store changes
 	const subscribers = new Set<(store: SyncableStore<S> | null) => void>();
+
+	// State for currentAccount reactive store
+	const stateSubscribers = new Set<(state: AsyncState<DataOf<S>>) => void>();
+	let currentStoreStateUnsub: (() => void) | undefined;
+	let latestState: AsyncState<DataOf<S>> = {
+		status: 'idle',
+		account: undefined,
+		isLoading: false,
+		loadError: null,
+	};
 
 	function notify(): void {
 		for (const callback of subscribers) {
 			callback(currentStore);
+		}
+	}
+
+	function notifyState(): void {
+		for (const callback of stateSubscribers) {
+			callback(latestState);
 		}
 	}
 
@@ -99,15 +115,26 @@ export function createMultiAccountStore<S extends Schema>(
 			return;
 		}
 
+		// Cleanup previous store's state subscription
+		currentStoreStateUnsub?.();
+		currentStoreStateUnsub = undefined;
+
 		// Stop and cleanup previous store
 		currentStore?.stop();
 
 		current = value;
 
-		// No account - transition to null
+		// No account - transition to null/idle
 		if (!value) {
 			currentStore = null;
+			latestState = {
+				status: 'idle',
+				account: undefined,
+				isLoading: false,
+				loadError: null,
+			};
 			notify();
+			notifyState();
 			return;
 		}
 
@@ -120,6 +147,15 @@ export function createMultiAccountStore<S extends Schema>(
 
 		// Set the new store immediately - subscribers see it in loading state
 		currentStore = store;
+
+		// Subscribe to store state if we have state subscribers
+		if (stateSubscribers.size > 0) {
+			currentStoreStateUnsub = store.subscribe((state) => {
+				latestState = state;
+				notifyState();
+			});
+		}
+
 		notify();
 		// load it
 		store.load();
@@ -138,15 +174,60 @@ export function createMultiAccountStore<S extends Schema>(
 	function stop(): void {
 		unsubscribeAccount?.();
 		unsubscribeAccount = undefined;
+		currentStoreStateUnsub?.();
+		currentStoreStateUnsub = undefined;
 		currentStore?.stop();
 		currentStore = null;
 		current = undefined;
+		latestState = {
+			status: 'idle',
+			account: undefined,
+			isLoading: false,
+			loadError: null,
+		};
 	}
+
+	// Create the currentAccount reactive store
+	const currentAccount: Readable<AsyncState<DataOf<S>>> = {
+		subscribe(callback: (state: AsyncState<DataOf<S>>) => void): () => void {
+			// Start lifecycle if this is the first subscriber overall
+			const needsStart = subscribers.size === 0 && stateSubscribers.size === 0;
+			if (needsStart) {
+				start();
+			}
+
+			// If we have a current store but no state subscription yet, subscribe now
+			if (currentStore && !currentStoreStateUnsub) {
+				currentStoreStateUnsub = currentStore.subscribe((state) => {
+					latestState = state;
+					notifyState();
+				});
+			}
+
+			stateSubscribers.add(callback);
+			callback(latestState); // Svelte store contract: call immediately
+
+			return () => {
+				stateSubscribers.delete(callback);
+
+				// Last subscriber overall - stop and cleanup
+				if (subscribers.size === 0 && stateSubscribers.size === 0) {
+					stop();
+				} else if (stateSubscribers.size === 0) {
+					// No more state subscribers, but still store subscribers
+					// Cleanup the store state subscription
+					currentStoreStateUnsub?.();
+					currentStoreStateUnsub = undefined;
+				}
+			};
+		},
+	};
 
 	return {
 		subscribe(callback: (store: SyncableStore<S> | null) => void): () => void {
-			// First subscriber - start listening to account changes
-			if (subscribers.size === 0) {
+			// Start lifecycle if this is the first subscriber overall
+			const needsStart = subscribers.size === 0 && stateSubscribers.size === 0;
+			if (needsStart) {
 				start();
 			}
 
@@ -157,8 +238,8 @@ export function createMultiAccountStore<S extends Schema>(
 			return () => {
 				subscribers.delete(callback);
 
-				// Last subscriber left - stop and cleanup
-				if (subscribers.size === 0) {
+				// Last subscriber overall - stop and cleanup
+				if (subscribers.size === 0 && stateSubscribers.size === 0) {
 					stop();
 				}
 			};
@@ -168,8 +249,6 @@ export function createMultiAccountStore<S extends Schema>(
 			return currentStore;
 		},
 
-		get currentAccount(): `0x${string}` | undefined {
-			return current ? getAddress(current) : undefined;
-		},
+		currentAccount,
 	};
 }
