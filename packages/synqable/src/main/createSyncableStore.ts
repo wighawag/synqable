@@ -49,8 +49,8 @@ export function createSyncableStore<S extends Schema>(
 	const storageKey = storageConfig.key;
 	const storageDebounceMs = storageConfig.options?.debounceMs ?? 100;
 
-	// Extract sync components - call factory with privateKey
-	const syncAdapter = syncConfig?.adapterFactory(privateKey);
+	// Extract sync components
+	const syncAdapter = syncConfig?.adapterFactory();
 	const syncOptions = syncConfig?.options;
 
 	// Sync configuration with defaults

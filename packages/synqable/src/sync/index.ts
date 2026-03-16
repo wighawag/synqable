@@ -20,3 +20,6 @@ export {
 	type PushResponseSuccess,
 	type PushResponseError,
 } from './types.js';
+
+// secp256k1-db sync adapter
+export * from './adapters/secp256k1-db/index.js';
