@@ -884,12 +884,17 @@ export function createSyncableStore<S extends Schema>(
 
 		watchField<K extends keyof S>(
 			field: K,
-		): S[K] extends MapField<unknown> ? Readable<DataOf<S>[K]> : Readable<DataOf<S>[K] | undefined> {
+		): S[K] extends MapField<unknown>
+			? Readable<DataOf<S>[K]>
+			: Readable<DataOf<S>[K] | undefined> {
 			type FieldType = DataOf<S>[K] | undefined;
 
 			const cacheKey = String(field);
 			const cached = fieldStoreCache.get(cacheKey);
-			if (cached) return cached as S[K] extends MapField<unknown> ? Readable<DataOf<S>[K]> : Readable<DataOf<S>[K] | undefined>;
+			if (cached)
+				return cached as S[K] extends MapField<unknown>
+					? Readable<DataOf<S>[K]>
+					: Readable<DataOf<S>[K] | undefined>;
 
 			const fieldDef = schema[field];
 			const isMap = fieldDef.__type === 'map';
@@ -942,11 +947,11 @@ export function createSyncableStore<S extends Schema>(
 				},
 			};
 
-				fieldStoreCache.set(cacheKey, fieldStore);
-				return fieldStore as S[K] extends MapField<unknown>
-					? Readable<DataOf<S>[K]>
-					: Readable<DataOf<S>[K] | undefined>;
-			},
+			fieldStoreCache.set(cacheKey, fieldStore);
+			return fieldStore as S[K] extends MapField<unknown>
+				? Readable<DataOf<S>[K]>
+				: Readable<DataOf<S>[K] | undefined>;
+		},
 
 		watchItemIds<K extends MapKeys<S>>(field: K): Readable<string[]> {
 			const cacheKey = `${String(field)}:ids`;

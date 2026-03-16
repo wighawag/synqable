@@ -317,9 +317,8 @@ export interface Readable<T> {
  * const tasksStore: FieldReadable<typeof schema, 'tasks'> = store.watchField('tasks'); // Never undefined
  * ```
  */
-export type FieldReadable<S extends Schema, K extends keyof S> = S[K] extends MapField<unknown>
-	? Readable<DataOf<S>[K]>
-	: Readable<DataOf<S>[K] | undefined>;
+export type FieldReadable<S extends Schema, K extends keyof S> =
+	S[K] extends MapField<unknown> ? Readable<DataOf<S>[K]> : Readable<DataOf<S>[K] | undefined>;
 
 /**
  * Type of the Readable returned by watchItem for a given map field.
