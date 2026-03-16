@@ -13,6 +13,7 @@ import type {
 	StorageStatus,
 	DataOf,
 	MapKeys,
+	MapField,
 	ExtractMapItem,
 } from '../main/types.js';
 import type {SyncStatus} from '../sync/types.js';
