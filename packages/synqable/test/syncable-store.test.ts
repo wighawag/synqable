@@ -93,7 +93,7 @@ describe('createSyncableStore', () => {
 			clock: () => clock,
 		});
 
-		expect(store.state.status).toBe('idle');
+		expect(store.get().status).toBe('idle');
 	});
 
 	it('transitions to ready state after load', async () => {
@@ -107,8 +107,8 @@ describe('createSyncableStore', () => {
 
 		await store.load();
 
-		expect(store.state.status).toBe('ready');
-		expect(store.state.account).toBe('0x1234567890123456789012345678901234567890');
+		expect(store.get().status).toBe('ready');
+		expect(store.get().account).toBe('0x1234567890123456789012345678901234567890');
 	});
 
 	it('returns account it was bound to', () => {
@@ -135,9 +135,10 @@ describe('createSyncableStore', () => {
 		await store.load();
 		store.set('settings', {theme: 'light', volume: 0.8});
 
-		if (store.state.status === 'ready') {
-			expect(store.state.data.settings.theme).toBe('light');
-			expect(store.state.data.settings.volume).toBe(0.8);
+		const state = store.get();
+		if (state.status === 'ready') {
+			expect(state.data.settings.theme).toBe('light');
+			expect(state.data.settings.volume).toBe(0.8);
 		} else {
 			expect.fail('Store should be ready');
 		}
@@ -155,11 +156,12 @@ describe('createSyncableStore', () => {
 		await store.load();
 		store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
-		if (store.state.status === 'ready') {
-			expect(store.state.data.operations['op-1']).toBeDefined();
-			expect(store.state.data.operations['op-1'].tx).toBe('0xabc');
-			expect(store.state.data.operations['op-1'].status).toBe('pending');
-			expect(store.state.data.operations['op-1'].deleteAt).toBe(9999);
+		const state = store.get();
+		if (state.status === 'ready') {
+			expect(state.data.operations['op-1']).toBeDefined();
+			expect(state.data.operations['op-1'].tx).toBe('0xabc');
+			expect(state.data.operations['op-1'].status).toBe('pending');
+			expect(state.data.operations['op-1'].deleteAt).toBe(9999);
 		} else {
 			expect.fail('Store should be ready');
 		}
@@ -179,10 +181,11 @@ describe('createSyncableStore', () => {
 		clock = 2000; // Advance clock
 		store.update('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
-		if (store.state.status === 'ready') {
-			expect(store.state.data.operations['op-1'].status).toBe('confirmed');
+		const state = store.get();
+		if (state.status === 'ready') {
+			expect(state.data.operations['op-1'].status).toBe('confirmed');
 			// deleteAt should be preserved
-			expect(store.state.data.operations['op-1'].deleteAt).toBe(9999);
+			expect(state.data.operations['op-1'].deleteAt).toBe(9999);
 		} else {
 			expect.fail('Store should be ready');
 		}
@@ -201,8 +204,9 @@ describe('createSyncableStore', () => {
 		store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 		store.remove('operations', 'op-1');
 
-		if (store.state.status === 'ready') {
-			expect(store.state.data.operations['op-1']).toBeUndefined();
+		const state = store.get();
+		if (state.status === 'ready') {
+			expect(state.data.operations['op-1']).toBeUndefined();
 		} else {
 			expect.fail('Store should be ready');
 		}
@@ -298,9 +302,10 @@ describe('createSyncableStore', () => {
 
 		await store.load();
 
-		if (store.state.status === 'ready') {
-			expect(store.state.data.settings.theme).toBe('custom');
-			expect(store.state.data.operations['existing-op']).toBeDefined();
+		const state = store.get();
+		if (state.status === 'ready') {
+			expect(state.data.settings.theme).toBe('custom');
+			expect(state.data.operations['existing-op']).toBeDefined();
 		} else {
 			expect.fail('Store should be ready');
 		}
@@ -885,7 +890,7 @@ describe('createSyncableStore', () => {
 			});
 
 			// Store is still idle (not loaded)
-			expect(store.state.status).toBe('idle');
+			expect(store.get().status).toBe('idle');
 
 			// Should not throw - just returns without error
 			await expect(store.syncNow()).resolves.toBeUndefined();
@@ -1609,7 +1614,7 @@ describe('createSyncableStore', () => {
 			expect(migrationCalls).toEqual([2, 3]);
 
 			// Verify store is ready
-			expect(store.state.status).toBe('ready');
+			expect(store.get().status).toBe('ready');
 		});
 
 		it('sets error when migration is missing', async () => {
@@ -1648,10 +1653,10 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Store should be idle with loadError set
-			expect(store.state.status).toBe('idle');
-			expect(store.state.isLoading).toBe(false);
-			expect(store.state.loadError).toBeDefined();
-			expect(store.state.loadError?.message).toBe('Missing migration for version 2');
+			expect(store.get().status).toBe('idle');
+			expect(store.get().isLoading).toBe(false);
+			expect(store.get().loadError).toBeDefined();
+			expect(store.get().loadError?.message).toBe('Missing migration for version 2');
 		});
 
 		it('does not run migrations when schema version matches', async () => {
@@ -1694,8 +1699,9 @@ describe('createSyncableStore', () => {
 			expect(migrationCalls).toEqual([]);
 
 			// Store should be ready with existing data
-			if (store.state.status === 'ready') {
-				expect(store.state.data.settings.theme).toBe('existing');
+			const state = store.get();
+			if (state.status === 'ready') {
+				expect(state.data.settings.theme).toBe('existing');
 			} else {
 				expect.fail('Store should be ready');
 			}
@@ -1730,8 +1736,9 @@ describe('createSyncableStore', () => {
 			expect(migrationCalls).toEqual([]);
 
 			// Store should be ready with default data
-			if (store.state.status === 'ready') {
-				expect(store.state.data.settings.theme).toBe('default-theme');
+			const state = store.get();
+			if (state.status === 'ready') {
+				expect(state.data.settings.theme).toBe('default-theme');
 			} else {
 				expect.fail('Store should be ready');
 			}
@@ -2120,9 +2127,10 @@ describe('createSyncableStore', () => {
 			await new Promise((r) => setTimeout(r, 20));
 
 			// Server data should win (higher timestamp)
-			if (store.state.status === 'ready') {
-				expect(store.state.data.settings.theme).toBe('server');
-				expect(store.state.data.settings.volume).toBe(0.7);
+			const state = store.get();
+			if (state.status === 'ready') {
+				expect(state.data.settings.theme).toBe('server');
+				expect(state.data.settings.volume).toBe(0.7);
 			} else {
 				expect.fail('Store should be ready');
 			}
@@ -2167,9 +2175,10 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Local data should win (higher timestamp)
-			if (store.state.status === 'ready') {
-				expect(store.state.data.settings.theme).toBe('local');
-				expect(store.state.data.settings.volume).toBe(0.9);
+			const state = store.get();
+			if (state.status === 'ready') {
+				expect(state.data.settings.theme).toBe('local');
+				expect(state.data.settings.volume).toBe(0.9);
 			} else {
 				expect.fail('Store should be ready');
 			}

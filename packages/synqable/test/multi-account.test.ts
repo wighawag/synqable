@@ -258,7 +258,7 @@ describe('createMultiAccountStore', () => {
 
 			expect(receivedStore).not.toBeNull();
 			expect(receivedStore!.account).toBe(account);
-			expect(receivedStore!.state.status).toBe('ready');
+			expect(receivedStore!.get().status).toBe('ready');
 		});
 
 		it('stops old store and creates new one when account changes', async () => {
@@ -312,13 +312,13 @@ describe('createMultiAccountStore', () => {
 			// First notification should be the new store in loading state (no null transition)
 			expect(storeHistory[0]).not.toBeNull();
 			expect(storeHistory[0]?.account).toBe(account2);
-			expect(storeHistory[0]?.state.isLoading).toBe(true);
+			expect(storeHistory[0]?.get().isLoading).toBe(true);
 
 			await new Promise((r) => setTimeout(r, 50));
 
 			// Store should now be ready (same store reference, state changed internally)
-			expect(storeHistory[0]?.state.status).toBe('ready');
-			expect(storeHistory[0]?.state.isLoading).toBe(false);
+			expect(storeHistory[0]?.get().status).toBe('ready');
+			expect(storeHistory[0]?.get().isLoading).toBe(false);
 		});
 	});
 
@@ -537,9 +537,9 @@ describe('createMultiAccountStore', () => {
 
 			// Store exists but shows error state (store handles errors internally)
 			expect(receivedStore).not.toBeNull();
-			expect(receivedStore!.state.status).toBe('idle');
-			expect(receivedStore!.state.loadError).toBeDefined();
-			expect(receivedStore!.state.loadError?.message).toBe('Storage error');
+			expect(receivedStore!.get().status).toBe('idle');
+			expect(receivedStore!.get().loadError).toBeDefined();
+			expect(receivedStore!.get().loadError?.message).toBe('Storage error');
 		});
 
 		it('re-subscribe after all subscribers left works correctly', async () => {
@@ -619,14 +619,14 @@ describe('createMultiAccountStore', () => {
 			// Should receive store in loading state immediately (no null transition)
 			expect(receivedStores[0]).not.toBeNull();
 			expect(receivedStores[0]?.account).toBe(account);
-			expect(receivedStores[0]?.state.isLoading).toBe(true);
+			expect(receivedStores[0]?.get().isLoading).toBe(true);
 
 			// Wait for load to complete
 			await new Promise((r) => setTimeout(r, 100));
 
 			// Store's internal state should now be ready
-			expect(receivedStores[0]?.state.status).toBe('ready');
-			expect(receivedStores[0]?.state.isLoading).toBe(false);
+			expect(receivedStores[0]?.get().status).toBe('ready');
+			expect(receivedStores[0]?.get().isLoading).toBe(false);
 		});
 	});
 

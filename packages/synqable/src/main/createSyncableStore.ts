@@ -511,7 +511,7 @@ export function createSyncableStore<S extends Schema>(
 	}
 
 	const store: SyncableStore<S> = {
-		get state() {
+		get() {
 			return asyncState as DeepReadonly<AsyncState<DataOf<S>>>;
 		},
 

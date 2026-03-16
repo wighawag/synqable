@@ -332,7 +332,7 @@ export interface SyncableStoreConfig<S extends Schema> {
 
 export interface SyncableStore<S extends Schema> {
 	/** Current async state (deeply readonly to prevent direct mutation) */
-	readonly state: DeepReadonly<AsyncState<DataOf<S>>>;
+	get(): DeepReadonly<AsyncState<DataOf<S>>>;
 
 	/** The account this store is bound to */
 	readonly account: `0x${string}`;
