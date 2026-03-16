@@ -67,29 +67,39 @@ await store.load();
 ### 3. Use the Store
 
 ```typescript
-// Set a permanent field
+// Get current state synchronously
+const state = store.get();
+if (state.status === 'ready') {
+  console.log('Settings:', state.data.settings);
+  console.log('Tasks:', state.data.tasks);
+}
+
+// Set a permanent field (full replacement)
 store.set('settings', { theme: 'dark', notifications: false });
 
-// Patch a permanent field (partial update)
-store.patch('settings', { theme: 'light' });
+// Update a permanent field with partial updates (deep merge)
+store.update('settings', { theme: 'light' });
 
-// Add a map item (with TTL - deleteAt timestamp)
-store.add('tasks', 'task-1', { title: 'Buy milk', completed: false }, {
+// Add a map item (with required deleteAt timestamp)
+store.addItem('tasks', 'task-1', { title: 'Buy milk', completed: false }, {
   deleteAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
 });
 
-// Update a map item
-store.update('tasks', 'task-1', { title: 'Buy milk', completed: true });
+// Set a map item (full replacement, preserves deleteAt)
+store.setItem('tasks', 'task-1', { title: 'Buy milk', completed: true });
+
+// Update a map item with partial updates (deep merge, preserves deleteAt)
+store.updateItem('tasks', 'task-1', { completed: true });
 
 // Remove a map item
-store.remove('tasks', 'task-1');
+store.removeItem('tasks', 'task-1');
 
-// Subscribe to state changes (Svelte store contract)
-const unsubscribe = store.subscribe((state) => {
-  if (state.status === 'ready') {
-    console.log('Settings:', state.data.settings);
-    console.log('Tasks:', state.data.tasks);
-  }
+// Subscribe to lifecycle state changes
+const unsubscribe = store.state$.subscribe((state) => {
+  console.log('Status:', state.status); // 'idle' | 'loading' | 'ready'
+  console.log('Account:', state.account);
+  console.log('Is loading:', state.isLoading);
+  console.log('Load error:', state.loadError);
 });
 ```
 
@@ -131,6 +141,12 @@ multiStore.subscribe((store) => {
     // No account connected
   }
 });
+
+// Use reactive state directly (works across account switches)
+multiStore.state$.subscribe((state) => {
+  console.log('Status:', state.status);
+  console.log('Account:', state.account);
+});
 ```
 
 ### Multi-Account with Encryption
@@ -163,6 +179,39 @@ const factory = createSyncableStoreFactory({
 const multiStore = createMultiAccountStore({
   accountStore, // Emits { owner: '0x...', privateKey: '0x...' }
   factory,
+});
+```
+
+### Multi-Account Watch Methods
+
+Watch fields and items directly on the multi-account store - they automatically update when the account changes:
+
+```typescript
+// Watch a permanent field across account switches
+const settings$ = multiStore.watchField('settings');
+settings$.subscribe((settings) => {
+  console.log('Settings:', settings); // undefined when no account connected
+});
+
+// Watch a specific map item
+const task$ = multiStore.watchItem('tasks', 'task-1');
+task$.subscribe((task) => {
+  console.log('Task:', task);
+});
+
+// Watch map item IDs (only notifies on additions/removals)
+const taskIds$ = multiStore.watchItemIds('tasks');
+taskIds$.subscribe((ids) => {
+  console.log('Task IDs:', ids); // [] when no account connected
+});
+
+// Watch sync and storage status
+multiStore.syncStatus$.subscribe((status) => {
+  console.log('Sync status:', status.displayState);
+});
+
+multiStore.storageStatus$.subscribe((status) => {
+  console.log('Storage status:', status.displayState);
 });
 ```
 
@@ -341,6 +390,12 @@ const task$ = store.watchItem('tasks', 'task-1');
 task$.subscribe((task) => {
   console.log('Task updated:', task);
 });
+
+// Watch map item IDs (only notifies on additions/removals, not updates)
+const taskIds$ = store.watchItemIds('tasks');
+taskIds$.subscribe((ids) => {
+  console.log('Task IDs:', ids);
+});
 ```
 
 ## Event System
@@ -368,7 +423,7 @@ store.on('tasks:removed', ({ key, item }) => {
 
 // Store lifecycle events
 store.on('$store:state', (event) => {
-  // { type: 'idle' | 'loading' | 'ready', error?: Error }
+  // { type: 'idle'; error?: Error } | { type: 'loading' } | { type: 'ready' }
 });
 
 store.on('$store:sync', (event) => {
@@ -387,15 +442,20 @@ store.on('$store:storage', (event) => {
 | Method | Description |
 |--------|-------------|
 | `load()` | Initialize the store by loading from storage |
-| `set(field, value)` | Set a permanent field value |
-| `patch(field, partial)` | Partially update a permanent field |
-| `add(field, key, value, options)` | Add an item to a map field |
-| `update(field, key, value)` | Update an existing map item |
-| `remove(field, key)` | Remove an item from a map field |
-| `subscribe(callback)` | Subscribe to state changes |
+| `get()` | Get current async state synchronously |
+| `set(field, value)` | Set a permanent field value (full replacement) |
+| `update(field, partial)` | Update a permanent field with partial updates (deep merge) |
+| `addItem(field, key, value, options)` | Add an item to a map field (requires `deleteAt`) |
+| `setItem(field, key, value)` | Set a map item (full replacement, preserves `deleteAt`) |
+| `updateItem(field, key, partial)` | Update a map item with partial updates (deep merge) |
+| `removeItem(field, key)` | Remove an item from a map field |
+| `on(event, callback)` | Subscribe to type-safe events |
+| `off(event, callback)` | Unsubscribe from events |
 | `watchField(field)` | Create a reactive store for a field |
 | `watchItem(field, key)` | Create a reactive store for a map item |
+| `watchItemIds(field)` | Create a reactive store for map item IDs |
 | `syncNow()` | Force immediate sync |
+| `retryLoad()` | Retry loading after a migration failure |
 | `flush(timeoutMs?)` | Wait for pending storage saves |
 | `stop()` | Cleanup and stop all listeners |
 
@@ -403,10 +463,50 @@ store.on('$store:storage', (event) => {
 
 | Property | Description |
 |----------|-------------|
-| `state` | Current async state (readonly) |
 | `account` | The account this store is bound to |
+| `state$` | Reactive store lifecycle state |
 | `syncStatus$` | Reactive sync status store |
 | `storageStatus$` | Reactive storage status store |
+
+### MultiAccountStore Methods
+
+| Method | Description |
+|--------|-------------|
+| `subscribe(callback)` | Subscribe to current store changes |
+| `get()` | Get current store synchronously (null if no account) |
+| `watchField(field)` | Watch a field across account switches |
+| `watchItem(field, key)` | Watch a map item across account switches |
+| `watchItemIds(field)` | Watch map item IDs across account switches |
+
+### MultiAccountStore Properties
+
+| Property | Description |
+|----------|-------------|
+| `state$` | Reactive lifecycle state (from current store) |
+| `syncStatus$` | Reactive sync status (from current store) |
+| `storageStatus$` | Reactive storage status (from current store) |
+
+### Type Utilities
+
+```typescript
+import type {
+  FieldReadable,    // Readable type for watchField
+  ItemReadable,     // Readable type for watchItem
+  ItemIdsReadable,  // Readable type for watchItemIds
+  ReadableValue,    // Extract value type from Readable
+  FieldReadables,   // All field readable types for a schema
+  ItemReadables,    // All item readable types for map fields
+  ItemIdsReadables, // All item IDs readable types for map fields
+} from 'synqable';
+
+// Example usage
+const settingsStore: FieldReadable<typeof schema, 'settings'> = store.watchField('settings');
+const taskStore: ItemReadable<typeof schema, 'tasks'> = store.watchItem('tasks', 'task-1');
+const taskIdsStore: ItemIdsReadable<typeof schema, 'tasks'> = store.watchItemIds('tasks');
+
+// Extract value type from any readable
+type SettingsValue = ReadableValue<typeof settingsStore>;
+```
 
 ## Schema Design
 

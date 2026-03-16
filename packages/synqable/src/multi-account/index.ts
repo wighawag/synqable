@@ -5,7 +5,17 @@
  * with race condition protection and lazy lifecycle management.
  */
 
-import type {Schema, SyncableStore, Readable, StoreLifecycleState} from '../main/types.js';
+import type {
+	Schema,
+	SyncableStore,
+	Readable,
+	StoreLifecycleState,
+	StorageStatus,
+	DataOf,
+	MapKeys,
+	ExtractMapItem,
+} from '../main/types.js';
+import type {SyncStatus} from '../sync/types.js';
 import type {
 	Account,
 	AccountWithSigner,
@@ -48,6 +58,37 @@ function isSameAccountOrSigner(
 	return keyA === keyB;
 }
 
+// ============================================================================
+// Default Status Values
+// ============================================================================
+
+const idleLifecycleState: StoreLifecycleState = {
+	status: 'idle',
+	account: undefined,
+	isLoading: false,
+	loadError: null,
+};
+
+const idleSyncStatus: SyncStatus = {
+	isSyncing: false,
+	isOnline: true,
+	hasPendingSync: false,
+	lastSyncedAt: null,
+	syncError: null,
+	get displayState() {
+		return 'idle' as const;
+	},
+};
+
+const idleStorageStatus: StorageStatus = {
+	isSaving: false,
+	lastSavedAt: null,
+	storageError: null,
+	get displayState() {
+		return 'idle' as const;
+	},
+};
+
 /**
  * Creates a multi-account store manager.
  *
@@ -87,15 +128,13 @@ export function createMultiAccountStore<S extends Schema>(
 	// Subscribers for store changes
 	const subscribers = new Set<(store: SyncableStore<S> | null) => void>();
 
-	// State for accountState reactive store
-	const stateSubscribers = new Set<(state: StoreLifecycleState) => void>();
-	let currentStoreStateUnsub: (() => void) | undefined;
-	let latestState: StoreLifecycleState = {
-		status: 'idle',
-		account: undefined,
-		isLoading: false,
-		loadError: null,
-	};
+	// Track all derived readables for account change notifications
+	interface DerivedReadableInfo {
+		setupOnStore(store: SyncableStore<S> | null): void;
+		subscribers: Set<(value: unknown) => void>;
+		cleanup(): void;
+	}
+	const derivedReadables = new Set<DerivedReadableInfo>();
 
 	function notify(): void {
 		for (const callback of subscribers) {
@@ -103,21 +142,102 @@ export function createMultiAccountStore<S extends Schema>(
 		}
 	}
 
-	function notifyState(): void {
-		for (const callback of stateSubscribers) {
-			callback(latestState);
+	function hasAnySubscribers(): boolean {
+		if (subscribers.size > 0) return true;
+		for (const derived of derivedReadables) {
+			if (derived.subscribers.size > 0) return true;
 		}
+		return false;
 	}
+
+	/**
+	 * Creates a derived readable that delegates to the current store's readable.
+	 * Automatically re-subscribes when account changes.
+	 */
+	function createDerivedReadable<T>(
+		getStoreReadable: (store: SyncableStore<S>) => Readable<T>,
+		defaultValue: T,
+	): Readable<T> {
+		const derivedSubscribers = new Set<(value: T) => void>();
+		let currentDerivedUnsub: (() => void) | undefined;
+		let latestDerivedValue: T = defaultValue;
+
+		function notifyDerivedSubscribers(): void {
+			for (const callback of derivedSubscribers) {
+				callback(latestDerivedValue);
+			}
+		}
+
+		// Track this derived readable for account change notifications
+		const derivedInfo: DerivedReadableInfo = {
+			setupOnStore(store: SyncableStore<S> | null): void {
+				// Cleanup previous subscription
+				currentDerivedUnsub?.();
+				currentDerivedUnsub = undefined;
+
+				if (!store) {
+					if (latestDerivedValue !== defaultValue) {
+						latestDerivedValue = defaultValue;
+						notifyDerivedSubscribers();
+					}
+					return;
+				}
+
+				// Subscribe to the store's readable
+				const storeReadable = getStoreReadable(store);
+				currentDerivedUnsub = storeReadable.subscribe((value) => {
+					latestDerivedValue = value;
+					notifyDerivedSubscribers();
+				});
+			},
+			subscribers: derivedSubscribers as Set<(value: unknown) => void>,
+			cleanup(): void {
+				currentDerivedUnsub?.();
+				currentDerivedUnsub = undefined;
+			},
+			};
+	
+			return {
+				subscribe(callback: (value: T) => void): () => void {
+					// Start lifecycle if this is the first subscriber overall
+					if (!hasAnySubscribers()) {
+						start();
+					}
+	
+					// Setup on current store if this is first subscriber for this derived
+					if (derivedSubscribers.size === 0) {
+						// Register for account change notifications (lazy registration)
+						derivedReadables.add(derivedInfo);
+						derivedInfo.setupOnStore(currentStore);
+					}
+	
+					derivedSubscribers.add(callback);
+					callback(latestDerivedValue); // Svelte store contract
+	
+					return () => {
+						derivedSubscribers.delete(callback);
+	
+						// Cleanup if no more subscribers for this derived
+						if (derivedSubscribers.size === 0) {
+							derivedInfo.cleanup();
+							// Remove from set to prevent memory leak
+							derivedReadables.delete(derivedInfo);
+						}
+	
+						// Stop lifecycle if no subscribers overall
+						if (!hasAnySubscribers()) {
+							stop();
+						}
+					};
+				},
+			};
+		}
 
 	function handleAccountChange(value: Account | AccountWithSigner | undefined): void {
 		// Same value - no change needed
 		if (isSameAccountOrSigner(value, current) && currentStore) {
 			return;
 		}
-
-		// Cleanup previous store's state subscription
-		currentStoreStateUnsub?.();
-		currentStoreStateUnsub = undefined;
 
 		// Stop and cleanup previous store
 		currentStore?.stop();
@@ -127,14 +247,15 @@ export function createMultiAccountStore<S extends Schema>(
 		// No account - transition to null/idle
 		if (!value) {
 			currentStore = null;
-			latestState = {
-				status: 'idle',
-				account: undefined,
-				isLoading: false,
-				loadError: null,
-			};
+
+			// Notify all active derived readables about the new store (null)
+			for (const derived of derivedReadables) {
+				if (derived.subscribers.size > 0) {
+					derived.setupOnStore(null);
+				}
+			}
+
 			notify();
-			notifyState();
 			return;
 		}
 
@@ -148,12 +269,11 @@ export function createMultiAccountStore<S extends Schema>(
 		// Set the new store immediately - subscribers see it in loading state
 		currentStore = store;
 
-		// Subscribe to store state if we have state subscribers
-		if (stateSubscribers.size > 0) {
-			currentStoreStateUnsub = store.state$.subscribe((state) => {
-				latestState = state;
-				notifyState();
-			});
+		// Notify all active derived readables about the new store
+		for (const derived of derivedReadables) {
+			if (derived.subscribers.size > 0) {
+				derived.setupOnStore(store);
+			}
 		}
 
 		notify();
@@ -174,60 +294,64 @@ export function createMultiAccountStore<S extends Schema>(
 	function stop(): void {
 		unsubscribeAccount?.();
 		unsubscribeAccount = undefined;
-		currentStoreStateUnsub?.();
-		currentStoreStateUnsub = undefined;
+
+		// Cleanup all derived readables
+		for (const derived of derivedReadables) {
+			derived.cleanup();
+		}
+
 		currentStore?.stop();
 		currentStore = null;
 		current = undefined;
-		latestState = {
-			status: 'idle',
-			account: undefined,
-			isLoading: false,
-			loadError: null,
-		};
 	}
 
-	// Create the accountState reactive store
-	const accountState: Readable<StoreLifecycleState> = {
-		subscribe(callback: (state: StoreLifecycleState) => void): () => void {
-			// Start lifecycle if this is the first subscriber overall
-			const needsStart = subscribers.size === 0 && stateSubscribers.size === 0;
-			if (needsStart) {
-				start();
-			}
+	// Create the state$ reactive store (renamed from accountState)
+	const state$ = createDerivedReadable<StoreLifecycleState>(
+		(store) => store.state$,
+		idleLifecycleState,
+	);
 
-			// If we have a current store but no state subscription yet, subscribe now
-			if (currentStore && !currentStoreStateUnsub) {
-				currentStoreStateUnsub = currentStore.state$.subscribe((state) => {
-					latestState = state;
-					notifyState();
-				});
-			}
+	// Create syncStatus$ reactive store
+	const syncStatus$ = createDerivedReadable<SyncStatus>(
+		(store) => store.syncStatus$,
+		idleSyncStatus,
+	);
 
-			stateSubscribers.add(callback);
-			callback(latestState); // Svelte store contract: call immediately
+	// Create storageStatus$ reactive store
+	const storageStatus$ = createDerivedReadable<StorageStatus>(
+		(store) => store.storageStatus$,
+		idleStorageStatus,
+	);
 
-			return () => {
-				stateSubscribers.delete(callback);
+	// Watch methods
+	function watchField<K extends keyof S>(field: K): Readable<DataOf<S>[K] | undefined> {
+		return createDerivedReadable<DataOf<S>[K] | undefined>(
+			(store) => store.watchField(field),
+			undefined,
+		);
+	}
 
-				// Last subscriber overall - stop and cleanup
-				if (subscribers.size === 0 && stateSubscribers.size === 0) {
-					stop();
-				} else if (stateSubscribers.size === 0) {
-					// No more state subscribers, but still store subscribers
-					// Cleanup the store state subscription
-					currentStoreStateUnsub?.();
-					currentStoreStateUnsub = undefined;
-				}
-			};
-		},
-	};
+	function watchItem<K extends MapKeys<S>>(
+		field: K,
+		key: string,
+	): Readable<(ExtractMapItem<S[K]> & {deleteAt: number}) | undefined> {
+		return createDerivedReadable(
+			(store) => store.watchItem(field, key),
+			undefined,
+		);
+	}
+
+	function watchItemIds<K extends MapKeys<S>>(field: K): Readable<string[]> {
+		return createDerivedReadable(
+			(store) => store.watchItemIds(field),
+			[],
+		);
+	}
 
 	return {
 		subscribe(callback: (store: SyncableStore<S> | null) => void): () => void {
 			// Start lifecycle if this is the first subscriber overall
-			const needsStart = subscribers.size === 0 && stateSubscribers.size === 0;
-			if (needsStart) {
+			if (!hasAnySubscribers()) {
 				start();
 			}
 
@@ -239,7 +363,7 @@ export function createMultiAccountStore<S extends Schema>(
 				subscribers.delete(callback);
 
 				// Last subscriber overall - stop and cleanup
-				if (subscribers.size === 0 && stateSubscribers.size === 0) {
+				if (!hasAnySubscribers()) {
 					stop();
 				}
 			};
@@ -249,6 +373,16 @@ export function createMultiAccountStore<S extends Schema>(
 			return currentStore;
 		},
 
-		accountState,
+		// Renamed from accountState
+		state$,
+
+		// New status readables
+		syncStatus$,
+		storageStatus$,
+
+		// New watch methods
+		watchField,
+		watchItem,
+		watchItemIds,
 	};
 }

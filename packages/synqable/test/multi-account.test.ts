@@ -204,7 +204,7 @@ describe('createMultiAccountStore', () => {
 			expect(mockFactory.getStoppedStores().has(account)).toBe(true);
 		});
 
-		it('resets accountState when last subscriber leaves', async () => {
+		it('resets state$ when last subscriber leaves', async () => {
 			const multiStore = createMultiAccountStore({
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
@@ -213,9 +213,9 @@ describe('createMultiAccountStore', () => {
 			const account = '0x1234567890123456789012345678901234567890' as const;
 			mockAccount.setAccount(account);
 
-			// Track accountState
+			// Track state$
 			let currentState: StoreLifecycleState | undefined;
-			const unsubAccountState = multiStore.accountState.subscribe((state) => {
+			const unsubAccountState = multiStore.state$.subscribe((state) => {
 				currentState = state;
 			});
 
@@ -227,13 +227,13 @@ describe('createMultiAccountStore', () => {
 				expect(currentState!.account).toBe(account);
 			}
 
-			// Unsubscribe from accountState (this is the last subscriber overall)
+			// Unsubscribe from state$ (this is the last subscriber overall)
 			unsubAccountState();
 
 			// State should reset to idle when no subscribers
 			// Re-subscribe to check - but this will restart the lifecycle
 			let newState: StoreLifecycleState | undefined;
-			const unsub2 = multiStore.accountState.subscribe((state) => {
+			const unsub2 = multiStore.state$.subscribe((state) => {
 				newState = state;
 			});
 
@@ -357,9 +357,9 @@ describe('createMultiAccountStore', () => {
 				finalStore = store;
 			});
 
-			// Also track accountState
+			// Also track state$
 			let currentState: StoreLifecycleState | undefined;
-			multiStore.accountState.subscribe((state) => {
+			multiStore.state$.subscribe((state) => {
 				currentState = state;
 			});
 
@@ -414,9 +414,9 @@ describe('createMultiAccountStore', () => {
 
 			multiStore.subscribe(() => {});
 
-			// Track accountState
+			// Track state$
 			let currentState: StoreLifecycleState | undefined;
-			multiStore.accountState.subscribe((state) => {
+			multiStore.state$.subscribe((state) => {
 				currentState = state;
 			});
 
@@ -435,7 +435,7 @@ describe('createMultiAccountStore', () => {
 
 			// Account A's store should have been stopped (orphan cleanup)
 			expect(slowFactory.getStoppedStores().has(accountA)).toBe(true);
-			// Account B should be current - check via accountState
+			// Account B should be current - check via state$
 			expect(currentState!.status).toBe('ready');
 			if (currentState!.status === 'ready') {
 				expect(currentState!.account).toBe(accountB);
@@ -731,7 +731,7 @@ describe('createMultiAccountStore', () => {
 		});
 	});
 
-	describe('accountState reactive store', () => {
+	describe('state$ reactive store (renamed from accountState)', () => {
 		it('returns idle state when no account connected', () => {
 			const multiStore = createMultiAccountStore({
 				accountStore: mockAccount.store,
@@ -739,7 +739,7 @@ describe('createMultiAccountStore', () => {
 			});
 
 			let currentState: StoreLifecycleState | undefined;
-			multiStore.accountState.subscribe((state) => {
+			multiStore.state$.subscribe((state) => {
 				currentState = state;
 			});
 
@@ -758,7 +758,7 @@ describe('createMultiAccountStore', () => {
 
 			let currentState: StoreLifecycleState | undefined;
 			let receivedStore: SyncableStore<TestSchema> | null = null;
-			multiStore.accountState.subscribe((state) => {
+			multiStore.state$.subscribe((state) => {
 				currentState = state;
 			});
 			multiStore.subscribe((store) => {
@@ -786,7 +786,7 @@ describe('createMultiAccountStore', () => {
 			});
 
 			let callCount = 0;
-			multiStore.accountState.subscribe(() => {
+			multiStore.state$.subscribe(() => {
 				callCount++;
 			});
 
@@ -818,7 +818,7 @@ describe('createMultiAccountStore', () => {
 			});
 
 			const states: StoreLifecycleState[] = [];
-			multiStore.accountState.subscribe((state) => {
+			multiStore.state$.subscribe((state) => {
 				states.push(state);
 			});
 
@@ -838,6 +838,392 @@ describe('createMultiAccountStore', () => {
 			const readyState = states[states.length - 1];
 			expect(readyState.status).toBe('ready');
 			expect(readyState.isLoading).toBe(false);
+		});
+	});
+
+	describe('syncStatus$ reactive store', () => {
+		it('returns idle sync status when no account connected', () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			let status: {isSyncing: boolean; displayState: string} | undefined;
+			multiStore.syncStatus$.subscribe((s) => {
+				status = s;
+			});
+
+			expect(status?.isSyncing).toBe(false);
+			expect(status?.displayState).toBe('idle');
+		});
+
+		it('reflects current store sync status when connected', async () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			const account = '0x1234567890123456789012345678901234567890' as const;
+			mockAccount.setAccount(account);
+
+			let status: {isSyncing: boolean; displayState: string} | undefined;
+			multiStore.syncStatus$.subscribe((s) => {
+				status = s;
+			});
+
+			await new Promise((r) => setTimeout(r, 50));
+
+			// Status should come from the underlying store
+			expect(status).toBeDefined();
+			expect(status?.isSyncing).toBe(false); // After load completes
+		});
+
+		it('updates when account switches', async () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			const statuses: {isSyncing: boolean; displayState: string}[] = [];
+			multiStore.syncStatus$.subscribe((s) => {
+				statuses.push(s);
+			});
+
+			const account1 = '0x1111111111111111111111111111111111111111' as const;
+			const account2 = '0x2222222222222222222222222222222222222222' as const;
+
+			mockAccount.setAccount(account1);
+			await new Promise((r) => setTimeout(r, 50));
+
+			mockAccount.setAccount(account2);
+			await new Promise((r) => setTimeout(r, 50));
+
+			// Should have transitioned through multiple status updates
+			expect(statuses.length).toBeGreaterThan(1);
+		});
+	});
+
+	describe('storageStatus$ reactive store', () => {
+		it('returns idle storage status when no account connected', () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			let status: {isSaving: boolean; displayState: string} | undefined;
+			multiStore.storageStatus$.subscribe((s) => {
+				status = s;
+			});
+
+			expect(status?.isSaving).toBe(false);
+			expect(status?.displayState).toBe('idle');
+		});
+
+		it('reflects current store storage status when connected', async () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			const account = '0x1234567890123456789012345678901234567890' as const;
+			mockAccount.setAccount(account);
+
+			let status: {isSaving: boolean; displayState: string} | undefined;
+			multiStore.storageStatus$.subscribe((s) => {
+				status = s;
+			});
+
+			await new Promise((r) => setTimeout(r, 50));
+
+			expect(status).toBeDefined();
+		});
+	});
+
+	describe('watchField', () => {
+		it('returns undefined when no account connected', () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			let value: {theme: string} | undefined;
+			multiStore.watchField('settings').subscribe((v) => {
+				value = v;
+			});
+
+			expect(value).toBeUndefined();
+		});
+
+		it('returns field value when account connected', async () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			const account = '0x1234567890123456789012345678901234567890' as const;
+			mockAccount.setAccount(account);
+
+			let value: {theme: string} | undefined;
+			multiStore.watchField('settings').subscribe((v) => {
+				value = v;
+			});
+
+			await new Promise((r) => setTimeout(r, 50));
+			expect(value).toEqual({theme: 'dark'});
+		});
+
+		it('automatically updates on account switch', async () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			const values: ({theme: string} | undefined)[] = [];
+			multiStore.watchField('settings').subscribe((v) => {
+				values.push(v);
+			});
+
+			const account1 = '0x1111111111111111111111111111111111111111' as const;
+			const account2 = '0x2222222222222222222222222222222222222222' as const;
+
+			mockAccount.setAccount(account1);
+			await new Promise((r) => setTimeout(r, 50));
+
+			mockAccount.setAccount(account2);
+			await new Promise((r) => setTimeout(r, 50));
+
+			// Should have received multiple values during account switches
+			expect(values.length).toBeGreaterThan(1);
+		});
+
+		it('reacts to mutations in current store', async () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			const account = '0x1234567890123456789012345678901234567890' as const;
+			mockAccount.setAccount(account);
+
+			const values: ({theme: string} | undefined)[] = [];
+			multiStore.watchField('settings').subscribe((v) => {
+				values.push(v);
+			});
+
+			await new Promise((r) => setTimeout(r, 50));
+
+			// Mutate the current store
+			const store = multiStore.get();
+			expect(store).not.toBeNull();
+			store!.set('settings', {theme: 'light'});
+
+			await new Promise((r) => setTimeout(r, 50));
+
+			// Should have received the updated value
+			expect(values[values.length - 1]).toEqual({theme: 'light'});
+		});
+	});
+
+	describe('watchItem', () => {
+		it('returns undefined when no account connected', () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			let value: {tx: string; status: string; deleteAt: number} | undefined;
+			multiStore.watchItem('operations', 'op1').subscribe((v) => {
+				value = v;
+			});
+
+			expect(value).toBeUndefined();
+		});
+
+		it('returns item value when account connected and item exists', async () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			const account = '0x1234567890123456789012345678901234567890' as const;
+			mockAccount.setAccount(account);
+
+			let value: {tx: string; status: string; deleteAt: number} | undefined;
+			multiStore.watchItem('operations', 'op1').subscribe((v) => {
+				value = v;
+			});
+
+			await new Promise((r) => setTimeout(r, 50));
+
+			// Add an item
+			const store = multiStore.get();
+			expect(store).not.toBeNull();
+			store!.addItem('operations', 'op1', {tx: '0x123', status: 'pending'}, {deleteAt: 0});
+
+			await new Promise((r) => setTimeout(r, 50));
+
+			expect(value).toBeDefined();
+			expect(value?.tx).toBe('0x123');
+			expect(value?.status).toBe('pending');
+		});
+	});
+
+	describe('watchItemIds', () => {
+		it('returns empty array when no account connected', () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			let ids: string[] | undefined;
+			multiStore.watchItemIds('operations').subscribe((v) => {
+				ids = v;
+			});
+
+			expect(ids).toEqual([]);
+		});
+
+		it('returns item IDs when account connected', async () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			const account = '0x1234567890123456789012345678901234567890' as const;
+			mockAccount.setAccount(account);
+
+			let ids: string[] | undefined;
+			multiStore.watchItemIds('operations').subscribe((v) => {
+				ids = v;
+			});
+
+			await new Promise((r) => setTimeout(r, 50));
+
+			// Add items
+			const store = multiStore.get();
+			expect(store).not.toBeNull();
+			store!.addItem('operations', 'op1', {tx: '0x123', status: 'pending'}, {deleteAt: 0});
+			store!.addItem('operations', 'op2', {tx: '0x456', status: 'complete'}, {deleteAt: 0});
+
+			await new Promise((r) => setTimeout(r, 50));
+
+			expect(ids).toContain('op1');
+			expect(ids).toContain('op2');
+		});
+	});
+
+	describe('lifecycle with derived readables', () => {
+		it('starts listening when any derived readable gets subscriber', () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			expect(mockAccount.getSubscriberCount()).toBe(0);
+
+			const unsub = multiStore.syncStatus$.subscribe(() => {});
+			expect(mockAccount.getSubscriberCount()).toBe(1);
+
+			unsub();
+			expect(mockAccount.getSubscriberCount()).toBe(0);
+		});
+
+		it('maintains lifecycle with mixed subscriber types', () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			const unsub1 = multiStore.subscribe(() => {});
+			const unsub2 = multiStore.state$.subscribe(() => {});
+			const unsub3 = multiStore.syncStatus$.subscribe(() => {});
+			const unsub4 = multiStore.watchField('settings').subscribe(() => {});
+
+			expect(mockAccount.getSubscriberCount()).toBe(1);
+
+			unsub1();
+			unsub2();
+			unsub3();
+			expect(mockAccount.getSubscriberCount()).toBe(1); // watchField still active
+
+			unsub4();
+			expect(mockAccount.getSubscriberCount()).toBe(0); // All gone
+		});
+
+		it('cleans up derived readables when unsubscribed (no memory leak)', () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			// Create many derived readables via watchField (dynamically created)
+			// Subscribe and immediately unsubscribe from each
+			for (let i = 0; i < 100; i++) {
+				const readable = multiStore.watchField('settings');
+				const unsub = readable.subscribe(() => {});
+				unsub();
+			}
+
+			// After all unsubscribes, the lifecycle should be fully stopped
+			expect(mockAccount.getSubscriberCount()).toBe(0);
+
+			// Now verify that the system still works correctly after all this
+			// Creating a new subscriber should work fine
+			const unsub = multiStore.watchField('settings').subscribe(() => {});
+			expect(mockAccount.getSubscriberCount()).toBe(1);
+			unsub();
+			expect(mockAccount.getSubscriberCount()).toBe(0);
+		});
+
+		it('re-registers derived readable correctly after unsubscribe and resubscribe', async () => {
+			const multiStore = createMultiAccountStore({
+				accountStore: mockAccount.store,
+				factory: mockFactory.factory,
+			});
+
+			const account = '0x1234567890123456789012345678901234567890' as const;
+			mockAccount.setAccount(account);
+
+			// Create a watchField readable
+			const settingsReadable = multiStore.watchField('settings');
+
+			// First subscription
+			const values1: ({theme: string} | undefined)[] = [];
+			const unsub1 = settingsReadable.subscribe((v) => {
+				values1.push(v);
+			});
+
+			await new Promise((r) => setTimeout(r, 50));
+			expect(values1[values1.length - 1]).toEqual({theme: 'dark'});
+
+			// Unsubscribe completely
+			unsub1();
+
+			// Mutate the store (this should NOT be seen by the unsubscribed readable)
+			const store = multiStore.get();
+			// Note: store might be null after unsubscribe since lifecycle stopped
+			// Need to re-subscribe first
+
+			// Re-subscribe
+			const values2: ({theme: string} | undefined)[] = [];
+			const unsub2 = settingsReadable.subscribe((v) => {
+				values2.push(v);
+			});
+
+			await new Promise((r) => setTimeout(r, 50));
+
+			// Should receive the current value after re-subscribing
+			expect(values2[values2.length - 1]).toEqual({theme: 'dark'});
+
+			// Now mutate and verify the re-subscribed readable receives updates
+			const store2 = multiStore.get();
+			expect(store2).not.toBeNull();
+			store2!.set('settings', {theme: 'light'});
+
+			await new Promise((r) => setTimeout(r, 50));
+			expect(values2[values2.length - 1]).toEqual({theme: 'light'});
+
+			unsub2();
 		});
 	});
 });

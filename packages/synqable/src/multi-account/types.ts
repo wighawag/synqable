@@ -4,7 +4,17 @@
  * Types for managing multiple SyncableStore instances across account switches.
  */
 
-import type {Schema, SyncableStore, Readable, StoreLifecycleState} from '../main/types.js';
+import type {
+	Schema,
+	SyncableStore,
+	Readable,
+	StoreLifecycleState,
+	StorageStatus,
+	DataOf,
+	MapKeys,
+	ExtractMapItem,
+} from '../main/types.js';
+import type {SyncStatus} from '../sync/types.js';
 
 // ============================================================================
 // Account Types for Encryption Support
@@ -103,11 +113,49 @@ export interface MultiAccountStore<S extends Schema> {
 	 */
 	get(): SyncableStore<S> | null;
 
+	// ============ Renamed ============
+
 	/**
-	 * Reactive lifecycle state derived from the current account's store.
-	 * Emits idle state when no account is connected.
-	 * Automatically manages nested subscriptions on account changes.
-	 * Use store.get() to access data when state.status === 'ready'.
+	 * Reactive lifecycle state derived from current store.
+	 * Returns idle state when no account connected.
+	 * RENAMED from accountState for consistency with SyncableStore.state$
 	 */
-	readonly accountState: Readable<StoreLifecycleState>;
+	readonly state$: Readable<StoreLifecycleState>;
+
+	// ============ New Status Readables ============
+
+	/**
+	 * Reactive sync status derived from current store.
+	 * Returns idle status when no account connected.
+	 */
+	readonly syncStatus$: Readable<SyncStatus>;
+
+	/**
+	 * Reactive storage status derived from current store.
+	 * Returns idle status when no account connected.
+	 */
+	readonly storageStatus$: Readable<StorageStatus>;
+
+	// ============ New Watch Methods ============
+
+	/**
+	 * Watch a field reactively across account switches.
+	 * Returns undefined when no account is connected or store is loading.
+	 */
+	watchField<K extends keyof S>(field: K): Readable<DataOf<S>[K] | undefined>;
+
+	/**
+	 * Watch a specific map item reactively across account switches.
+	 * Returns undefined when no account is connected or item doesn't exist.
+	 */
+	watchItem<K extends MapKeys<S>>(
+		field: K,
+		key: string,
+	): Readable<(ExtractMapItem<S[K]> & {deleteAt: number}) | undefined>;
+
+	/**
+	 * Watch map field IDs reactively across account switches.
+	 * Returns empty array when no account is connected.
+	 */
+	watchItemIds<K extends MapKeys<S>>(field: K): Readable<string[]>;
 }
