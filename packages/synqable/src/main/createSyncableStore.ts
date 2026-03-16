@@ -44,13 +44,13 @@ export function createSyncableStore<S extends Schema>(
 		migrations,
 	} = config;
 
-	// Extract storage components
-	const storageAdapter = storageConfig.adapterFactory();
+	// Extract storage components - pass privateKey for encryption
+	const storageAdapter = storageConfig.adapterFactory(privateKey);
 	const storageKey = storageConfig.key;
 	const storageDebounceMs = storageConfig.options?.debounceMs ?? 100;
 
-	// Extract sync components
-	const syncAdapter = syncConfig?.adapterFactory();
+	// Extract sync components - pass privateKey for encryption/signing
+	const syncAdapter = syncConfig?.adapterFactory(privateKey);
 	const syncOptions = syncConfig?.options;
 
 	// Sync configuration with defaults

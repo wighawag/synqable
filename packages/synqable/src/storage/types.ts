@@ -8,13 +8,15 @@ export interface StorageOptions {
 
 /**
  * Factory function that creates a storage adapter.
+ * @param privateKey - Optional private key for encryption
  */
-export type StorageAdapterFactory<T> = () => AsyncStorage<T>;
+export type StorageAdapterFactory<T> = (privateKey?: `0x${string}`) => AsyncStorage<T>;
 
 /**
  * Factory function that creates a watchable storage adapter.
+ * @param privateKey - Optional private key for encryption
  */
-export type WatchableStorageAdapterFactory<T> = () => WatchableStorage<T>;
+export type WatchableStorageAdapterFactory<T> = (privateKey?: `0x${string}`) => WatchableStorage<T>;
 
 /**
  * Combined storage configuration with adapter factory, key, and options.

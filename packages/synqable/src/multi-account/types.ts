@@ -6,6 +6,46 @@
 
 import type {Schema, SyncableStore, Readable} from '../main/types.js';
 
+// ============================================================================
+// Account Types for Encryption Support
+// ============================================================================
+
+/**
+ * Plain account - just an address, no encryption capability.
+ * This is equivalent to the existing `0x${string}` pattern used in AccountStore.
+ */
+export type Account = `0x${string}`;
+
+/**
+ * Account with signer - address + privateKey, enables encryption and signing.
+ */
+export interface AccountWithSigner {
+	owner: `0x${string}`;
+	privateKey: `0x${string}`;
+}
+
+/**
+ * Helper to extract address from either type.
+ */
+export function getAddress(value: Account | AccountWithSigner): `0x${string}` {
+	return typeof value === 'string' ? value : value.owner;
+}
+
+/**
+ * Helper to extract privateKey (undefined for plain account).
+ */
+export function getPrivateKey(value: Account | AccountWithSigner): `0x${string}` | undefined {
+	return typeof value === 'string' ? undefined : value.privateKey;
+}
+
+/**
+ * Store types - union of either store type.
+ * Config can accept either a plain account store or an account-with-signer store.
+ */
+export type AccountOrSignerStore =
+	| Readable<Account | undefined>
+	| Readable<AccountWithSigner | undefined>;
+
 /**
  * Account store - a readable store of Ethereum addresses.
  * Value is undefined when no account is connected.
@@ -14,15 +54,23 @@ export type AccountStore = Readable<`0x${string}` | undefined>;
 
 /**
  * Factory function that creates a SyncableStore for a given account.
+ * Now accepts optional privateKey for encryption.
  */
-export type SyncableStoreFactory<S extends Schema> = (account: `0x${string}`) => SyncableStore<S>;
+export type SyncableStoreFactory<S extends Schema> = (
+	account: `0x${string}`,
+	privateKey?: `0x${string}`,
+) => SyncableStore<S>;
 
 /**
  * Configuration for creating a multi-account store manager.
  */
 export interface MultiAccountStoreConfig<S extends Schema> {
-	/** Account store to subscribe to */
-	accountStore: AccountStore;
+	/**
+	 * Account store - can be either:
+	 * - Readable<Account | undefined> (plain address, no encryption)
+	 * - Readable<AccountWithSigner | undefined> (address + privateKey, with encryption)
+	 */
+	accountStore: AccountOrSignerStore;
 
 	/** Factory function to create stores for accounts */
 	factory: SyncableStoreFactory<S>;

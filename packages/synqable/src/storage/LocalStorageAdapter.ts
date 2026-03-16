@@ -1,6 +1,8 @@
 import type {WatchableStorage, StorageChangeCallback, WatchableStorageAdapterFactory} from './types.js';
 import type {Serializer} from '../serializer/types.js';
+import type {EncryptionProviderFactory} from '../encryption/types.js';
 import {createJsonSerializer} from '../serializer/types.js';
+import {wrapWithEncryption} from '../encryption/wrap.js';
 
 interface WatcherEntry<T> {
 	callback: StorageChangeCallback<T>;
@@ -137,11 +139,39 @@ export function createLocalStorageAdapter<T>(serializer: Serializer<T> = createJ
  * Creates a localStorage adapter factory with shared global listener.
  * All adapters created by this factory share the same storage event listener.
  *
- * @param serializer - Serializer for data transformation (defaults to JSON, shared by all adapters)
+ * @param encryptionFactory - Optional encryption factory. If provided, creates encryption from privateKey.
  * @returns WatchableStorageAdapterFactory that can be passed to StorageConfig
+ *
+ * @example Without encryption
+ * ```typescript
+ * const factory = createLocalStorageAdapterFactory();
+ * const adapter = factory(); // No encryption
+ * ```
+ *
+ * @example With encryption
+ * ```typescript
+ * import { createAesGcmProvider } from 'synqable/encryption';
+ *
+ * const factory = createLocalStorageAdapterFactory(createAesGcmProvider);
+ * const adapter = factory('0xprivateKey...'); // Data will be encrypted
+ * ```
  */
-export function createLocalStorageAdapterFactory<T>(serializer: Serializer<T> = createJsonSerializer<T>()): WatchableStorageAdapterFactory<T> {
+export function createLocalStorageAdapterFactory<T>(
+	encryptionFactory?: EncryptionProviderFactory,
+): WatchableStorageAdapterFactory<T> {
+	// Shared watcher state across all instances
 	const watcherState: SharedWatcherState<T> = {watchers: new Map(), globalListener: null};
 
-	return (): WatchableStorage<T> => createAdapter(serializer, watcherState);
+	return (privateKey?: `0x${string}`): WatchableStorage<T> => {
+		// Create base serializer
+		let serializer: Serializer<T> = createJsonSerializer<T>();
+
+		// Wrap with encryption if privateKey provided and factory exists
+		if (privateKey && encryptionFactory) {
+			const encryption = encryptionFactory(privateKey);
+			serializer = wrapWithEncryption(serializer, encryption);
+		}
+
+		return createAdapter(serializer, watcherState);
+	};
 }

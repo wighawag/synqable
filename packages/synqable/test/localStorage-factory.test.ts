@@ -1,5 +1,5 @@
 import {describe, it, expect, beforeEach, vi} from 'vitest';
-import {createLocalStorageAdapterFactory} from '../src/storage/LocalStorageAdapter.js';
+import {createLocalStorageAdapterFactory, createLocalStorageAdapter} from '../src/storage/LocalStorageAdapter.js';
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -100,13 +100,14 @@ describe('createLocalStorageAdapterFactory', () => {
 	});
 
 	describe('custom serialization', () => {
-		it('should use custom serializer', async () => {
+		it('should use custom serializer (standalone adapter)', async () => {
+			// Note: Custom serializers are supported via the standalone createLocalStorageAdapter
+			// The factory now accepts encryptionFactory for encryption support
 			const customSerializer = {
 				serialize: (data: {test: string}) => `custom:${JSON.stringify(data)}`,
 				deserialize: (data: string) => JSON.parse(data.replace('custom:', '')) as {test: string},
 			};
-			const factory = createLocalStorageAdapterFactory(customSerializer);
-			const adapter = factory();
+			const adapter = createLocalStorageAdapter(customSerializer);
 
 			await adapter.save('custom-key', {test: 'value'});
 

@@ -5,29 +5,73 @@
  * with race condition protection and lazy lifecycle management.
  */
 
-import type {Schema, SyncableStore} from '../main/types.js';
+import type {Schema, SyncableStore, Readable} from '../main/types.js';
 import type {
+	Account,
+	AccountWithSigner,
 	AccountStore,
+	AccountOrSignerStore,
 	SyncableStoreFactory,
 	MultiAccountStoreConfig,
 	MultiAccountStore,
 } from './types.js';
+import {getAddress, getPrivateKey} from './types.js';
 
 // Re-export types
-export type {AccountStore, SyncableStoreFactory, MultiAccountStoreConfig, MultiAccountStore};
+export type {
+	Account,
+	AccountWithSigner,
+	AccountStore,
+	AccountOrSignerStore,
+	SyncableStoreFactory,
+	MultiAccountStoreConfig,
+	MultiAccountStore,
+};
+export {getAddress, getPrivateKey};
+
+/**
+ * Helper to compare Account or AccountWithSigner values.
+ * Returns true if they represent the same account with the same privateKey.
+ */
+function isSameAccountOrSigner(
+	a: Account | AccountWithSigner | undefined,
+	b: Account | AccountWithSigner | undefined,
+): boolean {
+	if (!a || !b) return a === b;
+
+	const addrA = getAddress(a);
+	const addrB = getAddress(b);
+	if (addrA !== addrB) return false;
+
+	const keyA = getPrivateKey(a);
+	const keyB = getPrivateKey(b);
+	return keyA === keyB;
+}
 
 /**
  * Creates a multi-account store manager.
  *
- * @example
+ * @example With plain account (no encryption)
  * ```typescript
+ * const accountStore: Readable<`0x${string}` | undefined> = // from wallet
+ *
  * const multiStore = createMultiAccountStore({
- *   accountStore, // From your wallet connection library
+ *   accountStore,
+ *   factory: createSyncableStoreFactory({ schema, storage, defaultData }),
+ * });
+ * ```
+ *
+ * @example With signer account (enables encryption)
+ * ```typescript
+ * const accountStore: Readable<AccountWithSigner | undefined> = // from wallet with signer
+ *
+ * const multiStore = createMultiAccountStore({
+ *   accountStore,
  *   factory: createSyncableStoreFactory({ schema, storage, defaultData }),
  * });
  *
- * // Auto-starts when first subscriber subscribes
- * // Auto-stops when last subscriber unsubscribes
+ * // When accountStore emits { owner: '0x...', privateKey: '0x...' },
+ * // the factory receives both account and privateKey for encryption
  * ```
  */
 export function createMultiAccountStore<S extends Schema>(
@@ -35,9 +79,9 @@ export function createMultiAccountStore<S extends Schema>(
 ): MultiAccountStore<S> {
 	const {accountStore, factory} = config;
 
-	// State
+	// State - current tracks both Account and AccountWithSigner
 	let currentStore: SyncableStore<S> | null = null;
-	let currentAccount: `0x${string}` | undefined;
+	let current: Account | AccountWithSigner | undefined;
 	let unsubscribeAccount: (() => void) | undefined;
 
 	// Subscribers
@@ -49,25 +93,30 @@ export function createMultiAccountStore<S extends Schema>(
 		}
 	}
 
-	function handleAccountChange(account: `0x${string}` | undefined): void {
-		// Edge case #4: Account store emits same account - no-op
-		if (account === currentAccount && currentStore) {
+	function handleAccountChange(value: Account | AccountWithSigner | undefined): void {
+		// Same value - no change needed
+		if (isSameAccountOrSigner(value, current) && currentStore) {
 			return;
 		}
 
 		// Stop and cleanup previous store
 		currentStore?.stop();
 
-		currentAccount = account;
+		current = value;
 
 		// No account - transition to null
-		if (!account) {
+		if (!value) {
 			currentStore = null;
 			notify();
 			return;
 		}
 
-		let store = factory(account);
+		// Extract address and privateKey from either type
+		const account = getAddress(value);
+		const privateKey = getPrivateKey(value);
+
+		// Create store with account + optional privateKey
+		let store = factory(account, privateKey);
 
 		// Set the new store immediately - subscribers see it in loading state
 		currentStore = store;
@@ -80,7 +129,10 @@ export function createMultiAccountStore<S extends Schema>(
 		if (unsubscribeAccount) {
 			return; // Already started
 		}
-		unsubscribeAccount = accountStore.subscribe(handleAccountChange);
+		// Subscribe handles both store types - emitted values are discriminated by type
+		unsubscribeAccount = (accountStore as Readable<Account | AccountWithSigner | undefined>).subscribe(
+			handleAccountChange,
+		);
 	}
 
 	function stop(): void {
@@ -88,7 +140,7 @@ export function createMultiAccountStore<S extends Schema>(
 		unsubscribeAccount = undefined;
 		currentStore?.stop();
 		currentStore = null;
-		currentAccount = undefined;
+		current = undefined;
 	}
 
 	return {
@@ -117,7 +169,7 @@ export function createMultiAccountStore<S extends Schema>(
 		},
 
 		get currentAccount(): `0x${string}` | undefined {
-			return currentAccount;
+			return current ? getAddress(current) : undefined;
 		},
 	};
 }

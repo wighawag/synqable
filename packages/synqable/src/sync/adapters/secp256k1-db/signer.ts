@@ -51,3 +51,29 @@ export async function fromPrivateKey(privateKey: `0x${string}`): Promise<Secp256
 		},
 	};
 }
+
+/**
+ * Create a signer from a raw private key (sync factory, lazy initialization).
+ *
+ * This is a sync wrapper around viem's account creation that defers
+ * the actual initialization to the first signMessage call.
+ *
+ * @param privateKey - The private key as a hex string
+ * @returns A Secp256k1Signer that will initialize lazily
+ */
+export function createPrivateKeySigner(privateKey: `0x${string}`): Secp256k1Signer {
+	// Cache the account after first initialization
+	let cachedAccount: {signMessage: (args: {message: string}) => Promise<`0x${string}`>} | null =
+		null;
+
+	return {
+		signMessage: async (message: string) => {
+			if (!cachedAccount) {
+				// Dynamic import to avoid bundling viem if not used
+				const {privateKeyToAccount} = await import('viem/accounts');
+				cachedAccount = privateKeyToAccount(privateKey);
+			}
+			return cachedAccount.signMessage({message});
+		},
+	};
+}

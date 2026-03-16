@@ -167,8 +167,9 @@ export interface SyncOptions {
 
 /**
  * Factory function that creates a sync adapter.
+ * @param privateKey - Optional private key for encryption/signing
  */
-export type SyncAdapterFactory<S extends Schema> = () => SyncAdapter<S>;
+export type SyncAdapterFactory<S extends Schema> = (privateKey?: `0x${string}`) => SyncAdapter<S>;
 
 /**
  * Combined sync configuration with adapter factory and options.
