@@ -4,7 +4,7 @@
  * Types for managing multiple SyncableStore instances across account switches.
  */
 
-import type {Schema, SyncableStore, Readable, AsyncState, DataOf} from '../main/types.js';
+import type {Schema, SyncableStore, Readable, StoreLifecycleState} from '../main/types.js';
 
 // ============================================================================
 // Account Types for Encryption Support
@@ -104,9 +104,10 @@ export interface MultiAccountStore<S extends Schema> {
 	get(): SyncableStore<S> | null;
 
 	/**
-	 * Reactive state derived from the current account's store.
+	 * Reactive lifecycle state derived from the current account's store.
 	 * Emits idle state when no account is connected.
 	 * Automatically manages nested subscriptions on account changes.
+	 * Use store.get() to access data when state.status === 'ready'.
 	 */
-	readonly currentAccount: Readable<AsyncState<DataOf<S>>>;
+	readonly accountState: Readable<StoreLifecycleState>;
 }

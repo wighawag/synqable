@@ -4,6 +4,7 @@ import type {
 	DataOf,
 	AsyncState,
 	StorageStatus,
+	StoreLifecycleState,
 	PermanentKeys,
 	MapKeys,
 	ExtractPermanent,
@@ -184,6 +185,39 @@ export function createSyncableStore<S extends Schema>(
 		subscribe(callback: (status: StorageStatus) => void): () => void {
 			callback(storageStatus);
 			return emitter.on('$store:storage', () => callback(storageStatus));
+		},
+	};
+
+	// Derive lifecycle state from asyncState (without data)
+	function getLifecycleState(): StoreLifecycleState {
+		if (asyncState.status === 'ready') {
+			return {
+				status: 'ready',
+				account: asyncState.account,
+				isLoading: false,
+				loadError: null,
+			};
+		}
+		if (asyncState.isLoading) {
+			return {
+				status: 'loading',
+				account,
+				isLoading: true,
+				loadError: null,
+			};
+		}
+		return {
+			status: 'idle',
+			account: asyncState.account,
+			isLoading: false,
+			loadError: asyncState.loadError,
+		};
+	}
+
+	const state$: Readable<StoreLifecycleState> = {
+		subscribe(callback: (state: StoreLifecycleState) => void): () => void {
+			callback(getLifecycleState());
+			return emitter.on('$store:state', () => callback(getLifecycleState()));
 		},
 	};
 
@@ -737,14 +771,10 @@ export function createSyncableStore<S extends Schema>(
 			markDirty();
 		},
 
-		subscribe(callback: (state: AsyncState<DataOf<S>>) => void): () => void {
-			callback(asyncState);
-			return emitter.on('$store:state', () => callback(asyncState));
-		},
-
 		on: emitter.on.bind(emitter),
 		off: emitter.off.bind(emitter),
 
+		state$,
 		syncStatus$,
 		storageStatus$,
 

@@ -21,6 +21,7 @@ export {
 	type DeepReadonly,
 	type InternalStorage,
 	type AsyncState,
+	type StoreLifecycleState,
 	type StateEvent,
 	type StorageStatus,
 	type StorageEvent,
@@ -30,6 +31,13 @@ export {
 	type SyncableStore,
 	type SyncableStoreConfig,
 	type Readable,
+	type FieldReadable,
+	type ItemReadable,
+	type ItemIdsReadable,
+	type ReadableValue,
+	type FieldReadables,
+	type ItemReadables,
+	type ItemIdsReadables,
 } from './types.js';
 
 // Combined status utility

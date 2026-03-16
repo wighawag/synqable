@@ -257,6 +257,15 @@ export type AsyncState<T> =
 	| (AsyncStateBase & {status: 'idle'; account: `0x${string}` | undefined})
 	| (AsyncStateBase & {status: 'ready'; account: `0x${string}`; data: T});
 
+/**
+ * Store lifecycle state - for observing load status.
+ * Does NOT include data - use get() for current data or watchField/watchItem for reactivity.
+ */
+export type StoreLifecycleState =
+	| {status: 'idle'; account: `0x${string}` | undefined; isLoading: false; loadError: Error | null}
+	| {status: 'loading'; account: `0x${string}`; isLoading: true; loadError: null}
+	| {status: 'ready'; account: `0x${string}`; isLoading: false; loadError: null};
+
 // ============================================================================
 // Change Tracking Types
 // ============================================================================
@@ -292,6 +301,94 @@ export interface MutationOptions {
 export interface Readable<T> {
 	subscribe(callback: (value: T) => void): () => void;
 }
+
+// ============================================================================
+// Readable Type Utilities
+// ============================================================================
+
+/**
+ * Type of the Readable returned by watchField for a given field.
+ *
+ * @example
+ * ```typescript
+ * const settingsStore: FieldReadable<typeof schema, 'settings'> = store.watchField('settings');
+ * ```
+ */
+export type FieldReadable<S extends Schema, K extends keyof S> = Readable<DataOf<S>[K] | undefined>;
+
+/**
+ * Type of the Readable returned by watchItem for a given map field.
+ *
+ * @example
+ * ```typescript
+ * const taskStore: ItemReadable<typeof schema, 'tasks'> = store.watchItem('tasks', taskId);
+ * ```
+ */
+export type ItemReadable<S extends Schema, K extends MapKeys<S>> = Readable<
+	(ExtractMapItem<S[K]> & {deleteAt: number}) | undefined
+>;
+
+/**
+ * Type of the Readable returned by watchItemIds for a given map field.
+ *
+ * @example
+ * ```typescript
+ * const taskIdsStore: ItemIdsReadable<typeof schema, 'tasks'> = store.watchItemIds('tasks');
+ * ```
+ */
+export type ItemIdsReadable<S extends Schema, K extends MapKeys<S>> = Readable<string[]>;
+
+/**
+ * Helper to get the value type inside a Readable.
+ * Useful for typing callback parameters.
+ *
+ * @example
+ * ```typescript
+ * function handleSettings(settings: ReadableValue<FieldReadable<typeof schema, 'settings'>>) {
+ *     // settings is Settings | undefined
+ * }
+ * ```
+ */
+export type ReadableValue<R> = R extends Readable<infer T> ? T : never;
+
+/**
+ * All field readable types for a schema.
+ *
+ * @example
+ * ```typescript
+ * type MyFieldStores = FieldReadables<typeof schema>;
+ * // { settings: Readable<Settings | undefined>, tasks: Readable<Record<...> | undefined> }
+ * ```
+ */
+export type FieldReadables<S extends Schema> = {
+	[K in keyof S]: FieldReadable<S, K>;
+};
+
+/**
+ * All item readable types for map fields in a schema.
+ *
+ * @example
+ * ```typescript
+ * type MyItemStores = ItemReadables<typeof schema>;
+ * // { tasks: Readable<(Task & {deleteAt: number}) | undefined> }
+ * ```
+ */
+export type ItemReadables<S extends Schema> = {
+	[K in MapKeys<S>]: ItemReadable<S, K>;
+};
+
+/**
+ * All item IDs readable types for map fields in a schema.
+ *
+ * @example
+ * ```typescript
+ * type MyItemIdsStores = ItemIdsReadables<typeof schema>;
+ * // { tasks: Readable<string[]> }
+ * ```
+ */
+export type ItemIdsReadables<S extends Schema> = {
+	[K in MapKeys<S>]: ItemIdsReadable<S, K>;
+};
 
 // ============================================================================
 // Store Configuration
@@ -378,9 +475,6 @@ export interface SyncableStore<S extends Schema> {
 	/** Remove an item from a map field */
 	removeItem<K extends MapKeys<S>>(field: K, key: string, options?: MutationOptions): void;
 
-	/** Subscribe to state changes (Svelte store contract) */
-	subscribe(callback: (state: AsyncState<DataOf<S>>) => void): () => void;
-
 	/** Subscribe to type-safe events */
 	on<E extends keyof StoreEventsWithSync<S>>(
 		event: E,
@@ -410,6 +504,9 @@ export interface SyncableStore<S extends Schema> {
 
 	/** Watch map field IDs reactively - only notifies on additions and removals, not updates */
 	watchItemIds<K extends MapKeys<S>>(field: K): Readable<string[]>;
+
+	/** Reactive store lifecycle state */
+	readonly state$: Readable<StoreLifecycleState>;
 
 	/** Reactive sync status */
 	readonly syncStatus$: Readable<SyncStatus>;

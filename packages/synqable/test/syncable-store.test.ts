@@ -12,6 +12,7 @@ import {
 	type SyncStatus,
 	type StorageStatus,
 	type StateEvent,
+	type StoreLifecycleState,
 	type DataOf,
 } from '../src/index.js';
 
@@ -2107,7 +2108,7 @@ describe('createSyncableStore', () => {
 		});
 	});
 
-	describe('subscribe (main store)', () => {
+	describe('state$ (lifecycle state)', () => {
 		it('triggers on state transitions', async () => {
 			const store = createSyncableStore({
 				schema,
@@ -2118,7 +2119,7 @@ describe('createSyncableStore', () => {
 			});
 
 			const states: {status: string; isLoading: boolean}[] = [];
-			store.subscribe((state) => states.push({status: state.status, isLoading: state.isLoading}));
+			store.state$.subscribe((state) => states.push({status: state.status, isLoading: state.isLoading}));
 
 			// Clear initial subscription
 			states.length = 0;
@@ -2144,7 +2145,7 @@ describe('createSyncableStore', () => {
 
 			// Track subscription calls after ready state
 			let subscriptionCallCount = 0;
-			store.subscribe(() => {
+			store.state$.subscribe(() => {
 				subscriptionCallCount++;
 			});
 
@@ -2171,7 +2172,7 @@ describe('createSyncableStore', () => {
 
 			// Track subscription calls after ready state
 			let subscriptionCallCount = 0;
-			store.subscribe(() => {
+			store.state$.subscribe(() => {
 				subscriptionCallCount++;
 			});
 

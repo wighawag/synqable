@@ -5,7 +5,7 @@
  * with race condition protection and lazy lifecycle management.
  */
 
-import type {Schema, SyncableStore, Readable, AsyncState, DataOf} from '../main/types.js';
+import type {Schema, SyncableStore, Readable, StoreLifecycleState} from '../main/types.js';
 import type {
 	Account,
 	AccountWithSigner,
@@ -87,10 +87,10 @@ export function createMultiAccountStore<S extends Schema>(
 	// Subscribers for store changes
 	const subscribers = new Set<(store: SyncableStore<S> | null) => void>();
 
-	// State for currentAccount reactive store
-	const stateSubscribers = new Set<(state: AsyncState<DataOf<S>>) => void>();
+	// State for accountState reactive store
+	const stateSubscribers = new Set<(state: StoreLifecycleState) => void>();
 	let currentStoreStateUnsub: (() => void) | undefined;
-	let latestState: AsyncState<DataOf<S>> = {
+	let latestState: StoreLifecycleState = {
 		status: 'idle',
 		account: undefined,
 		isLoading: false,
@@ -150,7 +150,7 @@ export function createMultiAccountStore<S extends Schema>(
 
 		// Subscribe to store state if we have state subscribers
 		if (stateSubscribers.size > 0) {
-			currentStoreStateUnsub = store.subscribe((state) => {
+			currentStoreStateUnsub = store.state$.subscribe((state) => {
 				latestState = state;
 				notifyState();
 			});
@@ -187,9 +187,9 @@ export function createMultiAccountStore<S extends Schema>(
 		};
 	}
 
-	// Create the currentAccount reactive store
-	const currentAccount: Readable<AsyncState<DataOf<S>>> = {
-		subscribe(callback: (state: AsyncState<DataOf<S>>) => void): () => void {
+	// Create the accountState reactive store
+	const accountState: Readable<StoreLifecycleState> = {
+		subscribe(callback: (state: StoreLifecycleState) => void): () => void {
 			// Start lifecycle if this is the first subscriber overall
 			const needsStart = subscribers.size === 0 && stateSubscribers.size === 0;
 			if (needsStart) {
@@ -198,7 +198,7 @@ export function createMultiAccountStore<S extends Schema>(
 
 			// If we have a current store but no state subscription yet, subscribe now
 			if (currentStore && !currentStoreStateUnsub) {
-				currentStoreStateUnsub = currentStore.subscribe((state) => {
+				currentStoreStateUnsub = currentStore.state$.subscribe((state) => {
 					latestState = state;
 					notifyState();
 				});
@@ -249,6 +249,6 @@ export function createMultiAccountStore<S extends Schema>(
 			return currentStore;
 		},
 
-		currentAccount,
+		accountState,
 	};
 }

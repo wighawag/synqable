@@ -10,8 +10,7 @@ import {
 	type SyncableStore,
 	type AccountStore,
 	type SyncableStoreFactory,
-	type AsyncState,
-	type DataOf,
+	type StoreLifecycleState,
 } from '../src/index.js';
 
 // Test schema
@@ -205,7 +204,7 @@ describe('createMultiAccountStore', () => {
 			expect(mockFactory.getStoppedStores().has(account)).toBe(true);
 		});
 
-		it('resets currentAccount state when last subscriber leaves', async () => {
+		it('resets accountState when last subscriber leaves', async () => {
 			const multiStore = createMultiAccountStore({
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
@@ -214,9 +213,9 @@ describe('createMultiAccountStore', () => {
 			const account = '0x1234567890123456789012345678901234567890' as const;
 			mockAccount.setAccount(account);
 
-			// Track currentAccount state
-			let currentState: AsyncState<DataOf<TestSchema>> | undefined;
-			const unsubCurrentAccount = multiStore.currentAccount.subscribe((state) => {
+			// Track accountState
+			let currentState: StoreLifecycleState | undefined;
+			const unsubAccountState = multiStore.accountState.subscribe((state) => {
 				currentState = state;
 			});
 
@@ -228,13 +227,13 @@ describe('createMultiAccountStore', () => {
 				expect(currentState!.account).toBe(account);
 			}
 
-			// Unsubscribe from currentAccount (this is the last subscriber overall)
-			unsubCurrentAccount();
+			// Unsubscribe from accountState (this is the last subscriber overall)
+			unsubAccountState();
 
 			// State should reset to idle when no subscribers
 			// Re-subscribe to check - but this will restart the lifecycle
-			let newState: AsyncState<DataOf<TestSchema>> | undefined;
-			const unsub2 = multiStore.currentAccount.subscribe((state) => {
+			let newState: StoreLifecycleState | undefined;
+			const unsub2 = multiStore.accountState.subscribe((state) => {
 				newState = state;
 			});
 
@@ -358,9 +357,9 @@ describe('createMultiAccountStore', () => {
 				finalStore = store;
 			});
 
-			// Also track currentAccount state
-			let currentState: AsyncState<DataOf<TestSchema>> | undefined;
-			multiStore.currentAccount.subscribe((state) => {
+			// Also track accountState
+			let currentState: StoreLifecycleState | undefined;
+			multiStore.accountState.subscribe((state) => {
 				currentState = state;
 			});
 
@@ -415,9 +414,9 @@ describe('createMultiAccountStore', () => {
 
 			multiStore.subscribe(() => {});
 
-			// Track currentAccount state
-			let currentState: AsyncState<DataOf<TestSchema>> | undefined;
-			multiStore.currentAccount.subscribe((state) => {
+			// Track accountState
+			let currentState: StoreLifecycleState | undefined;
+			multiStore.accountState.subscribe((state) => {
 				currentState = state;
 			});
 
@@ -436,7 +435,7 @@ describe('createMultiAccountStore', () => {
 
 			// Account A's store should have been stopped (orphan cleanup)
 			expect(slowFactory.getStoppedStores().has(accountA)).toBe(true);
-			// Account B should be current - check via currentAccount state
+			// Account B should be current - check via accountState
 			expect(currentState!.status).toBe('ready');
 			if (currentState!.status === 'ready') {
 				expect(currentState!.account).toBe(accountB);
@@ -732,15 +731,15 @@ describe('createMultiAccountStore', () => {
 		});
 	});
 
-	describe('currentAccount reactive store', () => {
+	describe('accountState reactive store', () => {
 		it('returns idle state when no account connected', () => {
 			const multiStore = createMultiAccountStore({
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
 
-			let currentState: AsyncState<DataOf<TestSchema>> | undefined;
-			multiStore.currentAccount.subscribe((state) => {
+			let currentState: StoreLifecycleState | undefined;
+			multiStore.accountState.subscribe((state) => {
 				currentState = state;
 			});
 
@@ -748,7 +747,7 @@ describe('createMultiAccountStore', () => {
 			expect(currentState!.account).toBeUndefined();
 		});
 
-		it('returns ready state with data when account connected', async () => {
+		it('returns ready state when account connected', async () => {
 			const multiStore = createMultiAccountStore({
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
@@ -757,17 +756,26 @@ describe('createMultiAccountStore', () => {
 			const account = '0x1234567890123456789012345678901234567890' as const;
 			mockAccount.setAccount(account);
 
-			let currentState: AsyncState<DataOf<TestSchema>> | undefined;
-			multiStore.currentAccount.subscribe((state) => {
+			let currentState: StoreLifecycleState | undefined;
+			let receivedStore: SyncableStore<TestSchema> | null = null;
+			multiStore.accountState.subscribe((state) => {
 				currentState = state;
+			});
+			multiStore.subscribe((store) => {
+				receivedStore = store;
 			});
 			await new Promise((r) => setTimeout(r, 50));
 
 			expect(currentState!.status).toBe('ready');
 			if (currentState!.status === 'ready') {
 				expect(currentState!.account).toBe(account);
-				expect(currentState!.data).toBeDefined();
-				expect(currentState!.data.settings.theme).toBe('dark');
+			}
+			// Access data via the store's get() method
+			expect(receivedStore).not.toBeNull();
+			const storeState = receivedStore!.get();
+			expect(storeState.status).toBe('ready');
+			if (storeState.status === 'ready') {
+				expect(storeState.data.settings.theme).toBe('dark');
 			}
 		});
 
@@ -778,7 +786,7 @@ describe('createMultiAccountStore', () => {
 			});
 
 			let callCount = 0;
-			multiStore.currentAccount.subscribe(() => {
+			multiStore.accountState.subscribe(() => {
 				callCount++;
 			});
 
@@ -809,8 +817,8 @@ describe('createMultiAccountStore', () => {
 				factory: slowFactory.factory,
 			});
 
-			const states: AsyncState<DataOf<TestSchema>>[] = [];
-			multiStore.currentAccount.subscribe((state) => {
+			const states: StoreLifecycleState[] = [];
+			multiStore.accountState.subscribe((state) => {
 				states.push(state);
 			});
 
