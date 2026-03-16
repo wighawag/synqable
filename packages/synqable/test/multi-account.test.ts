@@ -131,6 +131,7 @@ describe('createMultiAccountStore', () => {
 	describe('lazy initialization', () => {
 		it('does not subscribe to account store before first subscriber', () => {
 			createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -141,6 +142,7 @@ describe('createMultiAccountStore', () => {
 
 		it('starts listening to account store on first subscriber', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -158,6 +160,7 @@ describe('createMultiAccountStore', () => {
 	describe('cleanup on last subscriber leaving', () => {
 		it('stops listening to account store when last subscriber leaves', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -179,6 +182,7 @@ describe('createMultiAccountStore', () => {
 
 		it('stops current store when last subscriber leaves', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -206,6 +210,7 @@ describe('createMultiAccountStore', () => {
 
 		it('resets state$ when last subscriber leaves', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -249,6 +254,7 @@ describe('createMultiAccountStore', () => {
 	describe('basic account switching', () => {
 		it('returns null when no account is connected', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -264,6 +270,7 @@ describe('createMultiAccountStore', () => {
 
 		it('creates and loads store when account connects', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -286,6 +293,7 @@ describe('createMultiAccountStore', () => {
 
 		it('stops old store and creates new one when account changes', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -313,6 +321,7 @@ describe('createMultiAccountStore', () => {
 
 		it('notifies with new store immediately during transition', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -348,6 +357,7 @@ describe('createMultiAccountStore', () => {
 	describe('race condition handling', () => {
 		it('handles rapid account switches correctly', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -408,6 +418,7 @@ describe('createMultiAccountStore', () => {
 			const slowFactory = createMockFactory(slowStorage);
 
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: slowFactory.factory,
 			});
@@ -446,6 +457,7 @@ describe('createMultiAccountStore', () => {
 	describe('store reference capture safety', () => {
 		it('captured store reference remains valid after account switch', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -478,6 +490,7 @@ describe('createMultiAccountStore', () => {
 	describe('edge cases', () => {
 		it('handles same account emission as no-op', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -524,6 +537,7 @@ describe('createMultiAccountStore', () => {
 			const slowFactory = createMockFactory(slowStorage);
 
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: slowFactory.factory,
 			});
@@ -564,6 +578,7 @@ describe('createMultiAccountStore', () => {
 			const failingFactory = createMockFactory(failingStorage);
 
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: failingFactory.factory,
 			});
@@ -585,6 +600,7 @@ describe('createMultiAccountStore', () => {
 
 		it('re-subscribe after all subscribers left works correctly', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -639,6 +655,7 @@ describe('createMultiAccountStore', () => {
 			const slowFactory = createMockFactory(slowStorage);
 
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: slowFactory.factory,
 			});
@@ -674,6 +691,7 @@ describe('createMultiAccountStore', () => {
 	describe('Svelte store contract', () => {
 		it('calls callback immediately on subscribe', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -689,6 +707,7 @@ describe('createMultiAccountStore', () => {
 
 		it('returns unsubscribe function', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -703,6 +722,7 @@ describe('createMultiAccountStore', () => {
 	describe('get() method', () => {
 		it('returns null when no subscribers', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -715,6 +735,7 @@ describe('createMultiAccountStore', () => {
 
 		it('returns current store when subscribed', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -734,6 +755,7 @@ describe('createMultiAccountStore', () => {
 	describe('state$ reactive store (renamed from accountState)', () => {
 		it('returns idle state when no account connected', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -749,6 +771,7 @@ describe('createMultiAccountStore', () => {
 
 		it('returns ready state when account connected', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -781,6 +804,7 @@ describe('createMultiAccountStore', () => {
 
 		it('follows Svelte store contract - calls callback immediately', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -813,6 +837,7 @@ describe('createMultiAccountStore', () => {
 			const slowFactory = createMockFactory(slowStorage);
 
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: slowFactory.factory,
 			});
@@ -844,6 +869,7 @@ describe('createMultiAccountStore', () => {
 	describe('syncStatus$ reactive store', () => {
 		it('returns idle sync status when no account connected', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -859,6 +885,7 @@ describe('createMultiAccountStore', () => {
 
 		it('reflects current store sync status when connected', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -880,6 +907,7 @@ describe('createMultiAccountStore', () => {
 
 		it('updates when account switches', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -906,6 +934,7 @@ describe('createMultiAccountStore', () => {
 	describe('storageStatus$ reactive store', () => {
 		it('returns idle storage status when no account connected', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -921,6 +950,7 @@ describe('createMultiAccountStore', () => {
 
 		it('reflects current store storage status when connected', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -942,6 +972,7 @@ describe('createMultiAccountStore', () => {
 	describe('watchField', () => {
 		it('returns undefined when no account connected', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -956,6 +987,7 @@ describe('createMultiAccountStore', () => {
 
 		it('returns field value when account connected', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -974,6 +1006,7 @@ describe('createMultiAccountStore', () => {
 
 		it('automatically updates on account switch', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -998,6 +1031,7 @@ describe('createMultiAccountStore', () => {
 
 		it('reacts to mutations in current store', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -1027,6 +1061,7 @@ describe('createMultiAccountStore', () => {
 	describe('watchItem', () => {
 		it('returns undefined when no account connected', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -1041,6 +1076,7 @@ describe('createMultiAccountStore', () => {
 
 		it('returns item value when account connected and item exists', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -1071,6 +1107,7 @@ describe('createMultiAccountStore', () => {
 	describe('watchItemIds', () => {
 		it('returns empty array when no account connected', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -1085,6 +1122,7 @@ describe('createMultiAccountStore', () => {
 
 		it('returns item IDs when account connected', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -1115,6 +1153,7 @@ describe('createMultiAccountStore', () => {
 	describe('lifecycle with derived readables', () => {
 		it('starts listening when any derived readable gets subscriber', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -1130,6 +1169,7 @@ describe('createMultiAccountStore', () => {
 
 		it('maintains lifecycle with mixed subscriber types', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -1152,6 +1192,7 @@ describe('createMultiAccountStore', () => {
 
 		it('cleans up derived readables when unsubscribed (no memory leak)', () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});
@@ -1177,6 +1218,7 @@ describe('createMultiAccountStore', () => {
 
 		it('re-registers derived readable correctly after unsubscribe and resubscribe', async () => {
 			const multiStore = createMultiAccountStore({
+				schema,
 				accountStore: mockAccount.store,
 				factory: mockFactory.factory,
 			});

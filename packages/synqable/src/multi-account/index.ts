@@ -119,7 +119,7 @@ const idleStorageStatus: StorageStatus = {
 export function createMultiAccountStore<S extends Schema>(
 	config: MultiAccountStoreConfig<S>,
 ): MultiAccountStore<S> {
-	const {accountStore, factory} = config;
+	const {schema, accountStore, factory} = config;
 
 	// State - current tracks both Account and AccountWithSigner
 	let currentStore: SyncableStore<S> | null = null;
@@ -328,14 +328,14 @@ export function createMultiAccountStore<S extends Schema>(
 	function watchField<K extends keyof S>(
 		field: K,
 	): S[K] extends MapField<unknown> ? Readable<DataOf<S>[K]> : Readable<DataOf<S>[K] | undefined> {
-		// When there's no store, the underlying store.watchField already handles returning
-		// the correct default (empty {} for maps, undefined for permanent fields).
-		// Note: When no account is connected, we use undefined as default which will
-		// be returned for all fields. This is a limitation since we don't have schema access.
-		// Once an account connects, the underlying store provides correct typing.
+		const fieldDef = schema[field];
+		const isMap = fieldDef.__type === 'map';
+		// Map fields use empty {} as default, permanent fields use undefined
+		const defaultValue = (isMap ? {} : undefined) as DataOf<S>[K] | undefined;
+
 		return createDerivedReadable<DataOf<S>[K] | undefined>(
 			(store) => store.watchField(field),
-			undefined,
+			defaultValue,
 		) as S[K] extends MapField<unknown>
 			? Readable<DataOf<S>[K]>
 			: Readable<DataOf<S>[K] | undefined>;

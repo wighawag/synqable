@@ -77,6 +77,11 @@ export type SyncableStoreFactory<S extends Schema> = (
  */
 export interface MultiAccountStoreConfig<S extends Schema> {
 	/**
+	 * Schema definition - required for correct default values on map fields.
+	 */
+	schema: S;
+
+	/**
 	 * Account store - can be either:
 	 * - Readable<Account | undefined> (plain address, no encryption)
 	 * - Readable<AccountWithSigner | undefined> (address + privateKey, with encryption)
