@@ -1,73 +1,86 @@
-import type {WatchableStorage, StorageChangeCallback} from './types.js';
+import type {WatchableStorage, StorageChangeCallback, WatchableStorageAdapterFactory} from './types.js';
+import type {Serializer} from '../serializer/types.js';
+import {createJsonSerializer} from '../serializer/types.js';
 
-export interface LocalStorageAdapterOptions<T> {
-	/** Optional serializer, defaults to JSON.stringify */
-	serialize?: (data: T) => string;
-	/** Optional deserializer, defaults to JSON.parse */
-	deserialize?: (data: string) => T;
+interface WatcherEntry<T> {
+	callback: StorageChangeCallback<T>;
+	deserialize: (data: string) => T | Promise<T | undefined>;
 }
 
-export function createLocalStorageAdapter<T>(
-	options?: LocalStorageAdapterOptions<T>,
-): WatchableStorage<T> {
-	const serialize = options?.serialize ?? JSON.stringify;
-	const deserialize = (options?.deserialize ?? JSON.parse) as (data: string) => T;
+interface SharedWatcherState<T> {
+	watchers: Map<string, Set<WatcherEntry<T>>>;
+	globalListener: ((e: StorageEvent) => void) | null;
+}
 
-	// Map of key -> Set of callbacks
-	const watchers = new Map<string, Set<StorageChangeCallback<T>>>();
+function ensureGlobalListener<T>(state: SharedWatcherState<T>): void {
+	if (state.globalListener) return;
 
-	// Single global listener for the storage event
-	let globalListener: ((e: StorageEvent) => void) | null = null;
+	state.globalListener = (e: StorageEvent) => {
+		if (!e.key) return;
 
-	function ensureGlobalListener() {
-		if (globalListener) return;
+		const entries = state.watchers.get(e.key);
+		if (!entries || entries.size === 0) return;
 
-		globalListener = (e: StorageEvent) => {
-			// Only handle changes from other tabs/windows
-			// Note: localStorage events only fire for changes from OTHER documents
-			if (!e.key) return;
+		for (const {callback, deserialize} of entries) {
+			if (e.newValue === null) {
+				callback(e.key, undefined); // deletion
+				continue;
+			}
 
-			const callbacks = watchers.get(e.key);
-			if (!callbacks || callbacks.size === 0) return;
-
-			// Parse new value
-			let newValue: T | undefined;
-			if (e.newValue !== null) {
-				try {
-					newValue = deserialize(e.newValue);
-				} catch {
-					newValue = undefined;
+			try {
+				const resultOrPromise = deserialize(e.newValue);
+				if (resultOrPromise instanceof Promise) {
+					// Async deserializer (encryption case)
+					resultOrPromise
+						.then((data) => {
+							if (data !== undefined) {
+								callback(e.key!, data);
+							}
+						})
+						.catch(() => {
+							callback(e.key!, undefined);
+						});
+				} else {
+					// Sync deserializer (no encryption case)
+					if (resultOrPromise !== undefined) {
+						callback(e.key, resultOrPromise);
+					}
 				}
+			} catch {
+				callback(e.key, undefined);
 			}
-
-			// Notify all watchers for this key
-			for (const callback of callbacks) {
-				callback(e.key, newValue);
-			}
-		};
-
-		window.addEventListener('storage', globalListener);
-	}
-
-	function cleanupGlobalListener() {
-		if (watchers.size === 0 && globalListener) {
-			window.removeEventListener('storage', globalListener);
-			globalListener = null;
 		}
-	}
+	};
 
+	window.addEventListener('storage', state.globalListener);
+}
+
+function cleanupGlobalListener<T>(state: SharedWatcherState<T>): void {
+	if (state.watchers.size === 0 && state.globalListener) {
+		window.removeEventListener('storage', state.globalListener);
+		state.globalListener = null;
+	}
+}
+
+function createAdapter<T>(serializer: Serializer<T>, watcherState: SharedWatcherState<T>): WatchableStorage<T> {
 	return {
 		async load(key: string): Promise<T | undefined> {
 			try {
 				const stored = localStorage.getItem(key);
-				return stored ? deserialize(stored) : undefined;
+				if (!stored) return undefined;
+				// Check if deserialize is sync to avoid unnecessary microtask
+				const resultOrPromise = serializer.deserialize(stored);
+				return resultOrPromise instanceof Promise ? await resultOrPromise : resultOrPromise;
 			} catch {
 				return undefined;
 			}
 		},
 
 		async save(key: string, data: T): Promise<void> {
-			localStorage.setItem(key, serialize(data));
+			// Check if serialize is sync to avoid unnecessary microtask
+			const resultOrPromise = serializer.serialize(data);
+			const serialized = resultOrPromise instanceof Promise ? await resultOrPromise : resultOrPromise;
+			localStorage.setItem(key, serialized);
 		},
 
 		async remove(key: string): Promise<void> {
@@ -83,24 +96,52 @@ export function createLocalStorageAdapter<T>(
 		},
 
 		watch(key: string, callback: StorageChangeCallback<T>): () => void {
-			ensureGlobalListener();
+			ensureGlobalListener(watcherState);
 
-			if (!watchers.has(key)) {
-				watchers.set(key, new Set());
+			if (!watcherState.watchers.has(key)) {
+				watcherState.watchers.set(key, new Set());
 			}
-			watchers.get(key)!.add(callback);
 
-			// Return unsubscribe function
+			const entry: WatcherEntry<T> = {
+				callback,
+				deserialize: serializer.deserialize,
+			};
+			watcherState.watchers.get(key)!.add(entry);
+
 			return () => {
-				const callbacks = watchers.get(key);
-				if (callbacks) {
-					callbacks.delete(callback);
-					if (callbacks.size === 0) {
-						watchers.delete(key);
+				const entries = watcherState.watchers.get(key);
+				if (entries) {
+					entries.delete(entry);
+					if (entries.size === 0) {
+						watcherState.watchers.delete(key);
 					}
 				}
-				cleanupGlobalListener();
+				cleanupGlobalListener(watcherState);
 			};
 		},
 	};
+}
+
+/**
+ * Creates a standalone localStorage adapter.
+ *
+ * @param serializer - Serializer for data transformation (defaults to JSON)
+ * @returns WatchableStorage adapter
+ */
+export function createLocalStorageAdapter<T>(serializer: Serializer<T> = createJsonSerializer<T>()): WatchableStorage<T> {
+	const watcherState: SharedWatcherState<T> = {watchers: new Map(), globalListener: null};
+	return createAdapter(serializer, watcherState);
+}
+
+/**
+ * Creates a localStorage adapter factory with shared global listener.
+ * All adapters created by this factory share the same storage event listener.
+ *
+ * @param serializer - Serializer for data transformation (defaults to JSON, shared by all adapters)
+ * @returns WatchableStorageAdapterFactory that can be passed to StorageConfig
+ */
+export function createLocalStorageAdapterFactory<T>(serializer: Serializer<T> = createJsonSerializer<T>()): WatchableStorageAdapterFactory<T> {
+	const watcherState: SharedWatcherState<T> = {watchers: new Map(), globalListener: null};
+
+	return (): WatchableStorage<T> => createAdapter(serializer, watcherState);
 }

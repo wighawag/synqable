@@ -5,7 +5,8 @@ export {
 	type StorageOptions,
 	type StorageConfig,
 	type StorageAdapterFactory,
+	type WatchableStorageAdapterFactory,
 	isWatchable,
 } from './types.js';
 
-export {createLocalStorageAdapter, type LocalStorageAdapterOptions} from './LocalStorageAdapter.js';
+export {createLocalStorageAdapter, createLocalStorageAdapterFactory} from './LocalStorageAdapter.js';
