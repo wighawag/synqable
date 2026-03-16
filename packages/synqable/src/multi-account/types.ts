@@ -12,6 +12,7 @@ import type {
 	StorageStatus,
 	DataOf,
 	MapKeys,
+	MapField,
 	ExtractMapItem,
 } from '../main/types.js';
 import type {SyncStatus} from '../sync/types.js';
@@ -140,9 +141,12 @@ export interface MultiAccountStore<S extends Schema> {
 
 	/**
 	 * Watch a field reactively across account switches.
-	 * Returns undefined when no account is connected or store is loading.
+	 * - For permanent fields: Returns undefined when no account is connected or store is loading.
+	 * - For map fields: Returns empty {} when no account is connected, never undefined.
 	 */
-	watchField<K extends keyof S>(field: K): Readable<DataOf<S>[K] | undefined>;
+	watchField<K extends keyof S>(
+		field: K,
+	): S[K] extends MapField<unknown> ? Readable<DataOf<S>[K]> : Readable<DataOf<S>[K] | undefined>;
 
 	/**
 	 * Watch a specific map item reactively across account switches.

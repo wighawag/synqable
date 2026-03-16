@@ -361,7 +361,7 @@ export type ReadableValue<R> = R extends Readable<infer T> ? T : never;
  * @example
  * ```typescript
  * type MyFieldStores = FieldReadables<typeof schema>;
- * // { settings: Readable<Settings | undefined>, tasks: Readable<Record<...> | undefined> }
+ * // { settings: Readable<Settings | undefined>, tasks: Readable<Record<...>> }
  * ```
  */
 export type FieldReadables<S extends Schema> = {
