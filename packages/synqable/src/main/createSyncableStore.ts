@@ -880,6 +880,11 @@ export function createSyncableStore<S extends Schema>(
 							}),
 						);
 						unsubs.push(
+							emitter.on(`${String(field)}:updated` as keyof StoreEventsWithSync<S>, () => {
+								callback(getCurrentValue());
+							}),
+						);
+						unsubs.push(
 							emitter.on(`${String(field)}:removed` as keyof StoreEventsWithSync<S>, () => {
 								callback(getCurrentValue());
 							}),
@@ -902,6 +907,45 @@ export function createSyncableStore<S extends Schema>(
 
 			fieldStoreCache.set(cacheKey, fieldStore);
 			return fieldStore;
+		},
+
+		watchItemIds<K extends MapKeys<S>>(field: K): Readable<string[]> {
+			const cacheKey = `${String(field)}:ids`;
+			const cached = fieldStoreCache.get(cacheKey);
+			if (cached) return cached as Readable<string[]>;
+
+			const getCurrentIds = (): string[] => {
+				if (asyncState.status !== 'ready') return [];
+				const items = (asyncState.data[field] as Record<string, unknown>) ?? {};
+				return Object.keys(items);
+			};
+
+			const idsStore: Readable<string[]> = {
+				subscribe(callback: (ids: string[]) => void): () => void {
+					callback(getCurrentIds());
+
+					const unsubState = emitter.on('$store:state', () => callback(getCurrentIds()));
+
+					const unsubAdded = emitter.on(
+						`${String(field)}:added` as keyof StoreEventsWithSync<S>,
+						() => callback(getCurrentIds()),
+					);
+
+					const unsubRemoved = emitter.on(
+						`${String(field)}:removed` as keyof StoreEventsWithSync<S>,
+						() => callback(getCurrentIds()),
+					);
+
+					return () => {
+						unsubState();
+						unsubAdded();
+						unsubRemoved();
+					};
+				},
+			};
+
+			fieldStoreCache.set(cacheKey, idsStore);
+			return idsStore;
 		},
 
 		async syncNow(): Promise<void> {

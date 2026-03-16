@@ -1904,7 +1904,7 @@ describe('createSyncableStore', () => {
 			expect(Object.keys(fieldValue || {}).length).toBe(0);
 		});
 
-		it('does NOT trigger on update() for map field', async () => {
+		it('triggers on update() for map field', async () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
@@ -1919,9 +1919,11 @@ describe('createSyncableStore', () => {
 			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let subscribeCallCount = 0;
+			let lastValue: Record<string, {tx: string; status: string; deleteAt: number}> | undefined;
 			const fieldStore = store.watchField('operations');
-			fieldStore.subscribe(() => {
+			fieldStore.subscribe((v) => {
 				subscribeCallCount++;
+				lastValue = v as typeof lastValue;
 			});
 
 			// Reset count after initial subscription
@@ -1931,8 +1933,9 @@ describe('createSyncableStore', () => {
 			clock = 2000;
 			store.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
-			// Should NOT have triggered the field store
-			expect(subscribeCallCount).toBe(0);
+			// Should have triggered the field store with updated value
+			expect(subscribeCallCount).toBe(1);
+			expect(lastValue?.['op-1']?.status).toBe('confirmed');
 		});
 
 		it('returns cached instance for same field', async () => {
@@ -1956,6 +1959,151 @@ describe('createSyncableStore', () => {
 			// Different field should return different instance
 			const fieldStore3 = store.watchField('operations');
 			expect(fieldStore1).not.toBe(fieldStore3);
+		});
+	});
+
+	describe('watchItemIds', () => {
+		it('returns empty array when store is not ready', () => {
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: {adapterFactory: () => storage, key: 'test-key'},
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+			});
+
+			// Store is idle - not loaded
+			let ids: string[] | undefined;
+			const idsStore = store.watchItemIds('operations');
+			idsStore.subscribe((v) => (ids = v));
+
+			expect(ids).toEqual([]);
+		});
+
+		it('returns current IDs for map field', async () => {
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: {adapterFactory: () => storage, key: 'test-key'},
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+			});
+
+			await store.load();
+
+			// Add some items first
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op-2', {tx: '0xdef', status: 'pending'}, {deleteAt: 9999});
+
+			let ids: string[] | undefined;
+			const idsStore = store.watchItemIds('operations');
+			idsStore.subscribe((v) => (ids = v));
+
+			expect(ids).toBeDefined();
+			expect(ids?.sort()).toEqual(['op-1', 'op-2']);
+		});
+
+		it('triggers on add() for map field', async () => {
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: {adapterFactory: () => storage, key: 'test-key'},
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+			});
+
+			await store.load();
+
+			let ids: string[] | undefined;
+			const idsStore = store.watchItemIds('operations');
+			idsStore.subscribe((v) => (ids = v));
+
+			// Initially empty
+			expect(ids).toEqual([]);
+
+			// Add an item
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+
+			// Should now have the ID
+			expect(ids).toEqual(['op-1']);
+		});
+
+		it('triggers on remove() for map field', async () => {
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: {adapterFactory: () => storage, key: 'test-key'},
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+			});
+
+			await store.load();
+
+			// Add item first
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+
+			let ids: string[] | undefined;
+			const idsStore = store.watchItemIds('operations');
+			idsStore.subscribe((v) => (ids = v));
+
+			// Has ID
+			expect(ids).toEqual(['op-1']);
+
+			// Remove it
+			store.removeItem('operations', 'op-1');
+
+			// Should be empty
+			expect(ids).toEqual([]);
+		});
+
+		it('does NOT trigger on update() for map field', async () => {
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: {adapterFactory: () => storage, key: 'test-key'},
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+			});
+
+			await store.load();
+
+			// Add item first
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+
+			let subscribeCallCount = 0;
+			const idsStore = store.watchItemIds('operations');
+			idsStore.subscribe(() => {
+				subscribeCallCount++;
+			});
+
+			// Reset count after initial subscription
+			subscribeCallCount = 0;
+
+			// Update item
+			clock = 2000;
+			store.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
+
+			// Should NOT have triggered - IDs didn't change
+			expect(subscribeCallCount).toBe(0);
+		});
+
+		it('returns cached instance for same field', async () => {
+			const store = createSyncableStore({
+				schema,
+				account: '0x1234567890123456789012345678901234567890',
+				storage: {adapterFactory: () => storage, key: 'test-key'},
+				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
+				clock: () => clock,
+			});
+
+			await store.load();
+
+			// Get ids store twice
+			const idsStore1 = store.watchItemIds('operations');
+			const idsStore2 = store.watchItemIds('operations');
+
+			// Should be the same instance
+			expect(idsStore1).toBe(idsStore2);
 		});
 	});
 

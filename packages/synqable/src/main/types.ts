@@ -408,6 +408,9 @@ export interface SyncableStore<S extends Schema> {
 	/** Watch a top-level field reactively */
 	watchField<K extends keyof S>(field: K): Readable<DataOf<S>[K] | undefined>;
 
+	/** Watch map field IDs reactively - only notifies on additions and removals, not updates */
+	watchItemIds<K extends MapKeys<S>>(field: K): Readable<string[]>;
+
 	/** Reactive sync status */
 	readonly syncStatus$: Readable<SyncStatus>;
 
