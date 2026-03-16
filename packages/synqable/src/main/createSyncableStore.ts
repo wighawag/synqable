@@ -543,7 +543,7 @@ export function createSyncableStore<S extends Schema>(
 			markDirty();
 		},
 
-		patch<K extends PermanentKeys<S>>(
+		update<K extends PermanentKeys<S>>(
 			field: K,
 			value: DeepPartial<ExtractPermanent<S[K]>>,
 			options?: MutationOptions,
@@ -570,7 +570,7 @@ export function createSyncableStore<S extends Schema>(
 			markDirty();
 		},
 
-		add<K extends MapKeys<S>>(
+		addItem<K extends MapKeys<S>>(
 			field: K,
 			key: string,
 			value: ExtractMapItem<S[K]>,
@@ -610,7 +610,7 @@ export function createSyncableStore<S extends Schema>(
 			markDirty();
 		},
 
-		update<K extends MapKeys<S>>(
+		setItem<K extends MapKeys<S>>(
 			field: K,
 			key: string,
 			value: ExtractMapItem<S[K]>,
@@ -653,7 +653,52 @@ export function createSyncableStore<S extends Schema>(
 			markDirty();
 		},
 
-		remove<K extends MapKeys<S>>(field: K, key: string, options?: MutationOptions): void {
+		updateItem<K extends MapKeys<S>>(
+			field: K,
+			key: string,
+			value: DeepPartial<ExtractMapItem<S[K]>>,
+			options?: MutationOptions,
+		): void {
+			if (asyncState.status !== 'ready' || !internalStorage) {
+				throw new Error('Store is not ready');
+			}
+
+			const items = ((internalStorage.data as Record<string, unknown>)[field as string] ??
+				{}) as Record<string, {deleteAt: number}>;
+			const existing = items[key];
+
+			if (!existing) {
+				throw new Error(`Item ${key} does not exist in ${String(field)}`);
+			}
+
+			const now = clock();
+			const timestamps =
+				(internalStorage.$itemTimestamps as Record<string, Record<string, number>>)[
+					field as string
+				] ?? {};
+
+			const merged = deepMerge(existing, value as Record<string, unknown>);
+			// Ensure deleteAt is preserved from existing item
+			const updatedItem = {...merged, deleteAt: existing.deleteAt};
+			items[key] = updatedItem;
+			timestamps[key] = now;
+
+			(internalStorage.data as Record<string, unknown>)[field as string] = items;
+			(internalStorage.$itemTimestamps as Record<string, Record<string, number>>)[field as string] =
+				timestamps;
+
+			asyncState = {...asyncState, data: {...internalStorage.data}};
+
+			emitter.emit(
+				`${String(field)}:updated` as keyof StoreEventsWithSync<S>,
+				{key, item: updatedItem} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
+			);
+
+			scheduleStorageSave(options?.immediate);
+			markDirty();
+		},
+
+		removeItem<K extends MapKeys<S>>(field: K, key: string, options?: MutationOptions): void {
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}

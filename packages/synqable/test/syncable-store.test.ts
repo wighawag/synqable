@@ -154,7 +154,7 @@ describe('createSyncableStore', () => {
 		});
 
 		await store.load();
-		store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+		store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 		const state = store.get();
 		if (state.status === 'ready') {
@@ -177,9 +177,9 @@ describe('createSyncableStore', () => {
 		});
 
 		await store.load();
-		store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+		store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 		clock = 2000; // Advance clock
-		store.update('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
+		store.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
 		const state = store.get();
 		if (state.status === 'ready') {
@@ -201,8 +201,8 @@ describe('createSyncableStore', () => {
 		});
 
 		await store.load();
-		store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
-		store.remove('operations', 'op-1');
+		store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+		store.removeItem('operations', 'op-1');
 
 		const state = store.get();
 		if (state.status === 'ready') {
@@ -223,7 +223,7 @@ describe('createSyncableStore', () => {
 
 		await store.load();
 
-		expect(() => store.remove('operations', 'non-existent')).toThrow(
+		expect(() => store.removeItem('operations', 'non-existent')).toThrow(
 			'Item non-existent does not exist in operations',
 		);
 	});
@@ -240,7 +240,7 @@ describe('createSyncableStore', () => {
 		await store.load();
 
 		expect(() => {
-			store.update('operations', 'non-existent', {tx: '0x', status: 'test'});
+			store.setItem('operations', 'non-existent', {tx: '0x', status: 'test'});
 		}).toThrow('Item non-existent does not exist in operations');
 	});
 
@@ -366,7 +366,7 @@ describe('createSyncableStore', () => {
 				receivedEvent = event;
 			});
 
-			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			expect(receivedEvent?.key).toBe('op-1');
 			expect(receivedEvent?.item.tx).toBe('0xabc');
@@ -384,7 +384,7 @@ describe('createSyncableStore', () => {
 
 			await store.load();
 
-			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let receivedEvent:
 				| {key: string; item: {tx: string; status: string; deleteAt: number}}
@@ -393,7 +393,7 @@ describe('createSyncableStore', () => {
 				receivedEvent = event;
 			});
 
-			store.update('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
+			store.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
 			expect(receivedEvent?.key).toBe('op-1');
 			expect(receivedEvent?.item.status).toBe('confirmed');
@@ -410,7 +410,7 @@ describe('createSyncableStore', () => {
 
 			await store.load();
 
-			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let receivedEvent:
 				| {key: string; item: {tx: string; status: string; deleteAt: number}}
@@ -419,7 +419,7 @@ describe('createSyncableStore', () => {
 				receivedEvent = event;
 			});
 
-			store.remove('operations', 'op-1');
+			store.removeItem('operations', 'op-1');
 
 			expect(receivedEvent?.key).toBe('op-1');
 		});
@@ -458,7 +458,7 @@ describe('createSyncableStore', () => {
 				receivedValue = value;
 			});
 
-			store.patch('settings', {volume: 0.9});
+			store.update('settings', {volume: 0.9});
 
 			expect(receivedValue?.volume).toBe(0.9);
 			expect(receivedValue?.theme).toBe('dark'); // original value preserved
@@ -495,7 +495,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add an item first
-			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Get item store and subscribe
 			let itemValue: {tx: string; status: string; deleteAt: number} | undefined;
@@ -528,7 +528,7 @@ describe('createSyncableStore', () => {
 			expect(itemValue).toBeUndefined();
 
 			// Add the item
-			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Should be updated
 			expect(itemValue).toBeDefined();
@@ -547,7 +547,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add an item first
-			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Subscribe to item store
 			let itemValue: {tx: string; status: string; deleteAt: number} | undefined;
@@ -558,7 +558,7 @@ describe('createSyncableStore', () => {
 
 			// Update the item
 			clock = 2000;
-			store.update('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
+			store.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
 			// Should be updated
 			expect(itemValue?.status).toBe('confirmed');
@@ -576,7 +576,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add an item first
-			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Subscribe to item store
 			let itemValue: {tx: string; status: string; deleteAt: number} | undefined;
@@ -586,7 +586,7 @@ describe('createSyncableStore', () => {
 			expect(itemValue).toBeDefined();
 
 			// Remove the item
-			store.remove('operations', 'op-1');
+			store.removeItem('operations', 'op-1');
 
 			// Should be undefined
 			expect(itemValue).toBeUndefined();
@@ -1821,7 +1821,7 @@ describe('createSyncableStore', () => {
 			fieldStore.subscribe((v) => (fieldValue = v));
 
 			// Patch the field
-			store.patch('settings', {volume: 0.9});
+			store.update('settings', {volume: 0.9});
 
 			expect(fieldValue?.theme).toBe('dark'); // unchanged
 			expect(fieldValue?.volume).toBe(0.9); // patched
@@ -1839,7 +1839,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add some items first
-			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let fieldValue: Record<string, {tx: string; status: string; deleteAt: number}> | undefined;
 			const fieldStore = store.watchField('operations');
@@ -1869,7 +1869,7 @@ describe('createSyncableStore', () => {
 			expect(Object.keys(fieldValue || {}).length).toBe(0);
 
 			// Add an item
-			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Should now have the item
 			expect(Object.keys(fieldValue || {}).length).toBe(1);
@@ -1888,7 +1888,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add item first
-			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let fieldValue: Record<string, {tx: string; status: string; deleteAt: number}> | undefined;
 			const fieldStore = store.watchField('operations');
@@ -1898,7 +1898,7 @@ describe('createSyncableStore', () => {
 			expect(Object.keys(fieldValue || {}).length).toBe(1);
 
 			// Remove it
-			store.remove('operations', 'op-1');
+			store.removeItem('operations', 'op-1');
 
 			// Should be empty
 			expect(Object.keys(fieldValue || {}).length).toBe(0);
@@ -1916,7 +1916,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add item first
-			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let subscribeCallCount = 0;
 			const fieldStore = store.watchField('operations');
@@ -1929,7 +1929,7 @@ describe('createSyncableStore', () => {
 
 			// Update item
 			clock = 2000;
-			store.update('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
+			store.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
 			// Should NOT have triggered the field store
 			expect(subscribeCallCount).toBe(0);
@@ -2031,16 +2031,16 @@ describe('createSyncableStore', () => {
 			subscriptionCallCount = 0;
 
 			// Add item
-			store.add('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 			expect(subscriptionCallCount).toBe(0);
 
 			// Update item
 			clock = 2000;
-			store.update('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
+			store.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 			expect(subscriptionCallCount).toBe(0);
 
 			// Remove item
-			store.remove('operations', 'op-1');
+			store.removeItem('operations', 'op-1');
 			expect(subscriptionCallCount).toBe(0);
 		});
 	});
@@ -2773,7 +2773,7 @@ describe('createSyncableStore', () => {
 			saveCallCount = 0; // Reset after load
 
 			store.set('settings', {theme: 'newTheme', volume: 0.9});
-			store.add('operations', 'op1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.addItem('operations', 'op1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			await new Promise((r) => setTimeout(r, 100));
 			await store.flush();
@@ -2971,11 +2971,11 @@ describe('createSyncableStore', () => {
 			await store.load();
 			saveCallCount = 0;
 
-			store.patch('settings', {volume: 0.9}, {immediate: true});
+			store.update('settings', {volume: 0.9}, {immediate: true});
 			await store.flush();
 			expect(saveCallCount).toBe(1);
 
-			store.add(
+			store.addItem(
 				'operations',
 				'key1',
 				{tx: '0x123', status: 'pending'},
@@ -2985,11 +2985,11 @@ describe('createSyncableStore', () => {
 			expect(saveCallCount).toBe(2);
 
 			clock = 2000;
-			store.update('operations', 'key1', {tx: '0x123', status: 'confirmed'}, {immediate: true});
+			store.setItem('operations', 'key1', {tx: '0x123', status: 'confirmed'}, {immediate: true});
 			await store.flush();
 			expect(saveCallCount).toBe(3);
 
-			store.remove('operations', 'key1', {immediate: true});
+			store.removeItem('operations', 'key1', {immediate: true});
 			await store.flush();
 			expect(saveCallCount).toBe(4);
 		});

@@ -344,31 +344,39 @@ export interface SyncableStore<S extends Schema> {
 		options?: MutationOptions,
 	): void;
 
-	/** Patch a permanent field with partial updates */
-	patch<K extends PermanentKeys<S>>(
+	/** Update a permanent field with partial updates (deep merge) */
+	update<K extends PermanentKeys<S>>(
 		field: K,
 		value: DeepPartial<ExtractPermanent<S[K]>>,
 		options?: MutationOptions,
 	): void;
 
 	/** Add an item to a map field */
-	add<K extends MapKeys<S>>(
+	addItem<K extends MapKeys<S>>(
 		field: K,
 		key: string,
 		value: ExtractMapItem<S[K]>,
 		options: {deleteAt: number; immediate?: boolean},
 	): void;
 
-	/** Update an existing map item */
-	update<K extends MapKeys<S>>(
+	/** Set an existing map item (full replacement, preserves deleteAt) */
+	setItem<K extends MapKeys<S>>(
 		field: K,
 		key: string,
 		value: ExtractMapItem<S[K]>,
 		options?: MutationOptions,
 	): void;
 
+	/** Update an existing map item with partial updates (deep merge, preserves deleteAt) */
+	updateItem<K extends MapKeys<S>>(
+		field: K,
+		key: string,
+		value: DeepPartial<ExtractMapItem<S[K]>>,
+		options?: MutationOptions,
+	): void;
+
 	/** Remove an item from a map field */
-	remove<K extends MapKeys<S>>(field: K, key: string, options?: MutationOptions): void;
+	removeItem<K extends MapKeys<S>>(field: K, key: string, options?: MutationOptions): void;
 
 	/** Subscribe to state changes (Svelte store contract) */
 	subscribe(callback: (state: AsyncState<DataOf<S>>) => void): () => void;
