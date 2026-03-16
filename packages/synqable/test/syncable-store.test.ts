@@ -2119,7 +2119,9 @@ describe('createSyncableStore', () => {
 			});
 
 			const states: {status: string; isLoading: boolean}[] = [];
-			store.state$.subscribe((state) => states.push({status: state.status, isLoading: state.isLoading}));
+			store.state$.subscribe((state) =>
+				states.push({status: state.status, isLoading: state.isLoading}),
+			);
 
 			// Clear initial subscription
 			states.length = 0;

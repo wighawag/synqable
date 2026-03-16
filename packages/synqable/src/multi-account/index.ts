@@ -195,43 +195,43 @@ export function createMultiAccountStore<S extends Schema>(
 				currentDerivedUnsub?.();
 				currentDerivedUnsub = undefined;
 			},
-			};
-	
-			return {
-				subscribe(callback: (value: T) => void): () => void {
-					// Start lifecycle if this is the first subscriber overall
-					if (!hasAnySubscribers()) {
-						start();
-					}
-	
-					// Setup on current store if this is first subscriber for this derived
+		};
+
+		return {
+			subscribe(callback: (value: T) => void): () => void {
+				// Start lifecycle if this is the first subscriber overall
+				if (!hasAnySubscribers()) {
+					start();
+				}
+
+				// Setup on current store if this is first subscriber for this derived
+				if (derivedSubscribers.size === 0) {
+					// Register for account change notifications (lazy registration)
+					derivedReadables.add(derivedInfo);
+					derivedInfo.setupOnStore(currentStore);
+				}
+
+				derivedSubscribers.add(callback);
+				callback(latestDerivedValue); // Svelte store contract
+
+				return () => {
+					derivedSubscribers.delete(callback);
+
+					// Cleanup if no more subscribers for this derived
 					if (derivedSubscribers.size === 0) {
-						// Register for account change notifications (lazy registration)
-						derivedReadables.add(derivedInfo);
-						derivedInfo.setupOnStore(currentStore);
+						derivedInfo.cleanup();
+						// Remove from set to prevent memory leak
+						derivedReadables.delete(derivedInfo);
 					}
-	
-					derivedSubscribers.add(callback);
-					callback(latestDerivedValue); // Svelte store contract
-	
-					return () => {
-						derivedSubscribers.delete(callback);
-	
-						// Cleanup if no more subscribers for this derived
-						if (derivedSubscribers.size === 0) {
-							derivedInfo.cleanup();
-							// Remove from set to prevent memory leak
-							derivedReadables.delete(derivedInfo);
-						}
-	
-						// Stop lifecycle if no subscribers overall
-						if (!hasAnySubscribers()) {
-							stop();
-						}
-					};
-				},
-			};
-		}
+
+					// Stop lifecycle if no subscribers overall
+					if (!hasAnySubscribers()) {
+						stop();
+					}
+				};
+			},
+		};
+	}
 
 	function handleAccountChange(value: Account | AccountWithSigner | undefined): void {
 		// Same value - no change needed
@@ -335,17 +335,11 @@ export function createMultiAccountStore<S extends Schema>(
 		field: K,
 		key: string,
 	): Readable<(ExtractMapItem<S[K]> & {deleteAt: number}) | undefined> {
-		return createDerivedReadable(
-			(store) => store.watchItem(field, key),
-			undefined,
-		);
+		return createDerivedReadable((store) => store.watchItem(field, key), undefined);
 	}
 
 	function watchItemIds<K extends MapKeys<S>>(field: K): Readable<string[]> {
-		return createDerivedReadable(
-			(store) => store.watchItemIds(field),
-			[],
-		);
+		return createDerivedReadable((store) => store.watchItemIds(field), []);
 	}
 
 	return {
