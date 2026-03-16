@@ -308,13 +308,18 @@ export interface Readable<T> {
 
 /**
  * Type of the Readable returned by watchField for a given field.
+ * - For permanent fields: T | undefined (can be undefined before first set or when store not ready)
+ * - For map fields: Always a Record (empty {} when store not ready, never undefined)
  *
  * @example
  * ```typescript
  * const settingsStore: FieldReadable<typeof schema, 'settings'> = store.watchField('settings');
+ * const tasksStore: FieldReadable<typeof schema, 'tasks'> = store.watchField('tasks'); // Never undefined
  * ```
  */
-export type FieldReadable<S extends Schema, K extends keyof S> = Readable<DataOf<S>[K] | undefined>;
+export type FieldReadable<S extends Schema, K extends keyof S> = S[K] extends MapField<unknown>
+	? Readable<DataOf<S>[K]>
+	: Readable<DataOf<S>[K] | undefined>;
 
 /**
  * Type of the Readable returned by watchItem for a given map field.
@@ -500,7 +505,9 @@ export interface SyncableStore<S extends Schema> {
 	): Readable<(ExtractMapItem<S[K]> & {deleteAt: number}) | undefined>;
 
 	/** Watch a top-level field reactively */
-	watchField<K extends keyof S>(field: K): Readable<DataOf<S>[K] | undefined>;
+	watchField<K extends keyof S>(
+		field: K,
+	): S[K] extends MapField<unknown> ? Readable<DataOf<S>[K]> : Readable<DataOf<S>[K] | undefined>;
 
 	/** Watch map field IDs reactively - only notifies on additions and removals, not updates */
 	watchItemIds<K extends MapKeys<S>>(field: K): Readable<string[]>;

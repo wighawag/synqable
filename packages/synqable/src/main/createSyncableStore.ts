@@ -15,6 +15,8 @@ import type {
 	SyncableStoreConfig,
 	SyncableStore,
 	Readable,
+	MapField,
+	FieldReadable,
 } from './types.js';
 
 import type {SyncStatus, StoreEventsWithSync} from '../sync/types.js';
@@ -880,20 +882,25 @@ export function createSyncableStore<S extends Schema>(
 			return itemStore;
 		},
 
-		watchField<K extends keyof S>(field: K): Readable<DataOf<S>[K] | undefined> {
+		watchField<K extends keyof S>(
+			field: K,
+		): S[K] extends MapField<unknown> ? Readable<DataOf<S>[K]> : Readable<DataOf<S>[K] | undefined> {
 			type FieldType = DataOf<S>[K] | undefined;
 
 			const cacheKey = String(field);
 			const cached = fieldStoreCache.get(cacheKey);
-			if (cached) return cached as Readable<FieldType>;
-
-			const getCurrentValue = (): FieldType => {
-				if (asyncState.status !== 'ready') return undefined;
-				return asyncState.data[field];
-			};
+			if (cached) return cached as S[K] extends MapField<unknown> ? Readable<DataOf<S>[K]> : Readable<DataOf<S>[K] | undefined>;
 
 			const fieldDef = schema[field];
 			const isMap = fieldDef.__type === 'map';
+
+			const getCurrentValue = (): FieldType => {
+				if (asyncState.status !== 'ready') {
+					// Map fields return empty record when store not ready, permanent fields return undefined
+					return (isMap ? {} : undefined) as FieldType;
+				}
+				return asyncState.data[field];
+			};
 
 			const fieldStore: Readable<FieldType> = {
 				subscribe(callback: (value: FieldType) => void): () => void {
@@ -935,9 +942,11 @@ export function createSyncableStore<S extends Schema>(
 				},
 			};
 
-			fieldStoreCache.set(cacheKey, fieldStore);
-			return fieldStore;
-		},
+				fieldStoreCache.set(cacheKey, fieldStore);
+				return fieldStore as S[K] extends MapField<unknown>
+					? Readable<DataOf<S>[K]>
+					: Readable<DataOf<S>[K] | undefined>;
+			},
 
 		watchItemIds<K extends MapKeys<S>>(field: K): Readable<string[]> {
 			const cacheKey = `${String(field)}:ids`;
