@@ -1,5 +1,11 @@
 # synqable
 
+## 0.0.5
+
+### Patch Changes
+
+- new api for multi-account
+
 ## 0.0.4
 
 ### Patch Changes
