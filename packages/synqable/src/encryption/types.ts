@@ -1,6 +1,6 @@
 export interface EncryptionProvider {
-	encrypt(data: string): Promise<string>;
-	decrypt(encryptedData: string): Promise<string>;
+	encrypt(data: string): string | Promise<string>;
+	decrypt(encryptedData: string): string | Promise<string>;
 }
 
 export type EncryptionProviderFactory = (privateKey: `0x${string}`) => EncryptionProvider;
