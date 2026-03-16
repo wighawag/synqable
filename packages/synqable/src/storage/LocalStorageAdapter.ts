@@ -1,4 +1,8 @@
-import type {WatchableStorage, StorageChangeCallback, WatchableStorageAdapterFactory} from './types.js';
+import type {
+	WatchableStorage,
+	StorageChangeCallback,
+	WatchableStorageAdapterFactory,
+} from './types.js';
 import type {Serializer} from '../serializer/types.js';
 import type {EncryptionProviderFactory} from '../encryption/types.js';
 import {createJsonSerializer} from '../serializer/types.js';
@@ -64,7 +68,10 @@ function cleanupGlobalListener<T>(state: SharedWatcherState<T>): void {
 	}
 }
 
-function createAdapter<T>(serializer: Serializer<T>, watcherState: SharedWatcherState<T>): WatchableStorage<T> {
+function createAdapter<T>(
+	serializer: Serializer<T>,
+	watcherState: SharedWatcherState<T>,
+): WatchableStorage<T> {
 	return {
 		async load(key: string): Promise<T | undefined> {
 			try {
@@ -81,7 +88,8 @@ function createAdapter<T>(serializer: Serializer<T>, watcherState: SharedWatcher
 		async save(key: string, data: T): Promise<void> {
 			// Check if serialize is sync to avoid unnecessary microtask
 			const resultOrPromise = serializer.serialize(data);
-			const serialized = resultOrPromise instanceof Promise ? await resultOrPromise : resultOrPromise;
+			const serialized =
+				resultOrPromise instanceof Promise ? await resultOrPromise : resultOrPromise;
 			localStorage.setItem(key, serialized);
 		},
 
@@ -130,7 +138,9 @@ function createAdapter<T>(serializer: Serializer<T>, watcherState: SharedWatcher
  * @param serializer - Serializer for data transformation (defaults to JSON)
  * @returns WatchableStorage adapter
  */
-export function createLocalStorageAdapter<T>(serializer: Serializer<T> = createJsonSerializer<T>()): WatchableStorage<T> {
+export function createLocalStorageAdapter<T>(
+	serializer: Serializer<T> = createJsonSerializer<T>(),
+): WatchableStorage<T> {
 	const watcherState: SharedWatcherState<T> = {watchers: new Map(), globalListener: null};
 	return createAdapter(serializer, watcherState);
 }

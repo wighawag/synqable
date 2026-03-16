@@ -1,5 +1,8 @@
 import {describe, it, expect, beforeEach, vi} from 'vitest';
-import {createLocalStorageAdapterFactory, createLocalStorageAdapter} from '../src/storage/LocalStorageAdapter.js';
+import {
+	createLocalStorageAdapterFactory,
+	createLocalStorageAdapter,
+} from '../src/storage/LocalStorageAdapter.js';
 
 // Mock localStorage
 const localStorageMock = (() => {

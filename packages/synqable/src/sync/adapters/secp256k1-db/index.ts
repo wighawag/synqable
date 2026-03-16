@@ -16,7 +16,12 @@ import {wrapWithEncryption} from '../../../encryption/wrap.js';
 import {createAesGcmProvider} from '../../../encryption/aes-gcm.js';
 
 export type {Secp256k1DBConfig, Secp256k1Signer} from './types.js';
-export {fromEthersSigner, fromViemWalletClient, fromPrivateKey, createPrivateKeySigner} from './signer.js';
+export {
+	fromEthersSigner,
+	fromViemWalletClient,
+	fromPrivateKey,
+	createPrivateKeySigner,
+} from './signer.js';
 
 /**
  * Configuration for creating a secp256k1-db sync adapter factory (legacy with explicit signer)

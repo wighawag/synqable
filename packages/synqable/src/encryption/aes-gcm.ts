@@ -23,9 +23,16 @@ export const createAesGcmProvider: EncryptionProviderFactory = (privateKey): Enc
 	async function getKey(): Promise<CryptoKey> {
 		if (cryptoKey) return cryptoKey;
 		const keyBuffer = hexToBytes(privateKey);
-		const keyMaterial = await crypto.subtle.importKey('raw', keyBuffer, 'HKDF', false, ['deriveKey']);
+		const keyMaterial = await crypto.subtle.importKey('raw', keyBuffer, 'HKDF', false, [
+			'deriveKey',
+		]);
 		cryptoKey = await crypto.subtle.deriveKey(
-			{name: 'HKDF', hash: 'SHA-256', salt: new TextEncoder().encode('synqable-v1'), info: new TextEncoder().encode('aes-gcm-key')},
+			{
+				name: 'HKDF',
+				hash: 'SHA-256',
+				salt: new TextEncoder().encode('synqable-v1'),
+				info: new TextEncoder().encode('aes-gcm-key'),
+			},
 			keyMaterial,
 			{name: 'AES-GCM', length: 256},
 			false,
@@ -38,7 +45,11 @@ export const createAesGcmProvider: EncryptionProviderFactory = (privateKey): Enc
 		async encrypt(data) {
 			const key = await getKey();
 			const iv = crypto.getRandomValues(new Uint8Array(12));
-			const ciphertext = await crypto.subtle.encrypt({name: 'AES-GCM', iv}, key, new TextEncoder().encode(data));
+			const ciphertext = await crypto.subtle.encrypt(
+				{name: 'AES-GCM', iv},
+				key,
+				new TextEncoder().encode(data),
+			);
 			const combined = new Uint8Array(iv.length + ciphertext.byteLength);
 			combined.set(iv);
 			combined.set(new Uint8Array(ciphertext), iv.length);

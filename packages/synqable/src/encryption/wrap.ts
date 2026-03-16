@@ -10,7 +10,10 @@ import {ENCRYPTED_PREFIX, isEncrypted, EncryptedDataError} from './types.js';
  * Note: When no encryption is provided, the returned serializer preserves
  * the sync/async nature of the base serializer to avoid microtask overhead.
  */
-export function wrapWithEncryption<T>(baseSerializer: Serializer<T>, encryption?: EncryptionProvider): Serializer<T> {
+export function wrapWithEncryption<T>(
+	baseSerializer: Serializer<T>,
+	encryption?: EncryptionProvider,
+): Serializer<T> {
 	if (!encryption) {
 		// No encryption: preserve sync behavior of base serializer
 		return {
@@ -29,24 +32,31 @@ export function wrapWithEncryption<T>(baseSerializer: Serializer<T>, encryption?
 		serialize: async (data: T) => {
 			// Check if base serializer is sync to avoid unnecessary microtask
 			const serializeOrPromise = baseSerializer.serialize(data);
-			const serialized = serializeOrPromise instanceof Promise ? await serializeOrPromise : serializeOrPromise;
+			const serialized =
+				serializeOrPromise instanceof Promise ? await serializeOrPromise : serializeOrPromise;
 			// Check if encryption is sync to avoid unnecessary microtask
 			const encryptOrPromise = encryption.encrypt(serialized);
-			const encrypted = encryptOrPromise instanceof Promise ? await encryptOrPromise : encryptOrPromise;
+			const encrypted =
+				encryptOrPromise instanceof Promise ? await encryptOrPromise : encryptOrPromise;
 			return ENCRYPTED_PREFIX + encrypted;
 		},
 		deserialize: async (data: string) => {
 			if (isEncrypted(data)) {
 				// Check if decryption is sync to avoid unnecessary microtask
 				const decryptOrPromise = encryption.decrypt(data.slice(ENCRYPTED_PREFIX.length));
-				const decrypted = decryptOrPromise instanceof Promise ? await decryptOrPromise : decryptOrPromise;
+				const decrypted =
+					decryptOrPromise instanceof Promise ? await decryptOrPromise : decryptOrPromise;
 				// Check if base deserializer is sync
 				const deserializeOrPromise = baseSerializer.deserialize(decrypted);
-				return deserializeOrPromise instanceof Promise ? await deserializeOrPromise : deserializeOrPromise;
+				return deserializeOrPromise instanceof Promise
+					? await deserializeOrPromise
+					: deserializeOrPromise;
 			}
 			// Plain data — readable (migration-friendly)
 			const deserializeOrPromise = baseSerializer.deserialize(data);
-			return deserializeOrPromise instanceof Promise ? await deserializeOrPromise : deserializeOrPromise;
+			return deserializeOrPromise instanceof Promise
+				? await deserializeOrPromise
+				: deserializeOrPromise;
 		},
 	};
 }

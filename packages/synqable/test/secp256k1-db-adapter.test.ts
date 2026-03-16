@@ -64,10 +64,7 @@ describe('Secp256k1DBClient', () => {
 
 		const callArgs = mockFetch.mock.calls[0];
 		const body = JSON.parse(callArgs[1].body);
-		expect(body.params).toEqual([
-			'0x1234567890123456789012345678901234567890',
-			'test-ns',
-		]);
+		expect(body.params).toEqual(['0x1234567890123456789012345678901234567890', 'test-ns']);
 	});
 
 	it('sends correct JSON-RPC request for putString', async () => {

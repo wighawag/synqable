@@ -130,9 +130,9 @@ export function createMultiAccountStore<S extends Schema>(
 			return; // Already started
 		}
 		// Subscribe handles both store types - emitted values are discriminated by type
-		unsubscribeAccount = (accountStore as Readable<Account | AccountWithSigner | undefined>).subscribe(
-			handleAccountChange,
-		);
+		unsubscribeAccount = (
+			accountStore as Readable<Account | AccountWithSigner | undefined>
+		).subscribe(handleAccountChange);
 	}
 
 	function stop(): void {

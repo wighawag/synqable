@@ -2519,7 +2519,10 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage: {adapterFactory: () => storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: {adapterFactory: () => mockAdapter, options: {debounceMs: 10, maxRetries: 3, retryBackoffMs: 10}},
+				sync: {
+					adapterFactory: () => mockAdapter,
+					options: {debounceMs: 10, maxRetries: 3, retryBackoffMs: 10},
+				},
 				clock: () => clock,
 			});
 
@@ -2552,7 +2555,10 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage: {adapterFactory: () => storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: {adapterFactory: () => mockAdapter, options: {debounceMs: 10, maxRetries: 2, retryBackoffMs: 10}},
+				sync: {
+					adapterFactory: () => mockAdapter,
+					options: {debounceMs: 10, maxRetries: 2, retryBackoffMs: 10},
+				},
 				clock: () => clock,
 			});
 
@@ -2596,7 +2602,10 @@ describe('createSyncableStore', () => {
 				account: '0x1234567890123456789012345678901234567890',
 				storage: {adapterFactory: () => storage, key: 'test-key'},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
-				sync: {adapterFactory: () => mockAdapter, options: {debounceMs: 10, maxRetries: 3, retryBackoffMs: 20}},
+				sync: {
+					adapterFactory: () => mockAdapter,
+					options: {debounceMs: 10, maxRetries: 3, retryBackoffMs: 20},
+				},
 				clock: () => clock,
 			});
 
@@ -2692,7 +2701,11 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: {adapterFactory: () => trackingStorage, key: 'test-key', options: {debounceMs: 50}},
+				storage: {
+					adapterFactory: () => trackingStorage,
+					key: 'test-key',
+					options: {debounceMs: 50},
+				},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -2738,7 +2751,11 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: {adapterFactory: () => trackingStorage, key: 'test-key', options: {debounceMs: 50}},
+				storage: {
+					adapterFactory: () => trackingStorage,
+					key: 'test-key',
+					options: {debounceMs: 50},
+				},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -2844,7 +2861,11 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: {adapterFactory: () => trackingStorage, key: 'test-key', options: {debounceMs: 1000}},
+				storage: {
+					adapterFactory: () => trackingStorage,
+					key: 'test-key',
+					options: {debounceMs: 1000},
+				},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -2885,7 +2906,11 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: {adapterFactory: () => trackingStorage, key: 'test-key', options: {debounceMs: 500}},
+				storage: {
+					adapterFactory: () => trackingStorage,
+					key: 'test-key',
+					options: {debounceMs: 500},
+				},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -2925,7 +2950,11 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: {adapterFactory: () => trackingStorage, key: 'test-key', options: {debounceMs: 1000}},
+				storage: {
+					adapterFactory: () => trackingStorage,
+					key: 'test-key',
+					options: {debounceMs: 1000},
+				},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -3080,7 +3109,11 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: {adapterFactory: () => trackingStorage, key: 'test-key', options: {debounceMs: 500}},
+				storage: {
+					adapterFactory: () => trackingStorage,
+					key: 'test-key',
+					options: {debounceMs: 500},
+				},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});
@@ -3120,7 +3153,11 @@ describe('createSyncableStore', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
-				storage: {adapterFactory: () => trackingStorage, key: 'test-key', options: {debounceMs: 10000}},
+				storage: {
+					adapterFactory: () => trackingStorage,
+					key: 'test-key',
+					options: {debounceMs: 10000},
+				},
 				defaultData: () => ({settings: {theme: 'dark', volume: 0.5}, operations: {}}),
 				clock: () => clock,
 			});

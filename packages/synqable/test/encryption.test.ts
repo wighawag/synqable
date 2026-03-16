@@ -64,7 +64,8 @@ describe('Encryption Helpers', () => {
 });
 
 describe('createAesGcmProvider', () => {
-	const testPrivateKey = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as const;
+	const testPrivateKey =
+		'0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as const;
 
 	it('encrypts and decrypts data', async () => {
 		const provider = createAesGcmProvider(testPrivateKey);
@@ -126,7 +127,8 @@ describe('createAesGcmProvider', () => {
 });
 
 describe('wrapWithEncryption', () => {
-	const testPrivateKey = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as const;
+	const testPrivateKey =
+		'0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef' as const;
 
 	describe('without encryption', () => {
 		it('preserves sync behavior of base serializer', () => {
