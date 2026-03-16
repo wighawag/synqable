@@ -1,5 +1,11 @@
 # synqable
 
+## 0.0.6
+
+### Patch Changes
+
+- fixmap unset
+
 ## 0.0.5
 
 ### Patch Changes
