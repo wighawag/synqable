@@ -1,3 +1,7 @@
+# format (after changes)
+
+pnpm format
+
 # build
 
 pnpm build
