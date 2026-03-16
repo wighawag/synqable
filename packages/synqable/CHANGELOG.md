@@ -1,5 +1,11 @@
 # synqable
 
+## 0.0.4
+
+### Patch Changes
+
+- new api
+
 ## 0.0.3
 
 ### Patch Changes
