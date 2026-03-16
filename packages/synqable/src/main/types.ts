@@ -6,7 +6,6 @@
  * - Map: Key-value collection with per-item timestamps and deleteAt
  */
 
-import type {EncryptionProviderFactory} from '../encryption/types.js';
 import {StorageConfig} from '../storage/types.js';
 import {StoreEventsWithSync, SyncConfig, SyncStatus} from '../sync/types.js';
 
@@ -307,12 +306,6 @@ export interface SyncableStoreConfig<S extends Schema> {
 
 	/** Optional private key for encryption */
 	privateKey?: `0x${string}`;
-
-	/**
-	 * Custom factory to create EncryptionProvider from privateKey.
-	 * Defaults to AES-GCM encryption if not provided.
-	 */
-	encryptionFactory?: EncryptionProviderFactory;
 
 	/** Storage configuration: adapter factory, key, and options */
 	storage: StorageConfig<InternalStorage<S>>;

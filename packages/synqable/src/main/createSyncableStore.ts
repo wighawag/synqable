@@ -232,9 +232,6 @@ export function createSyncableStore<S extends Schema>(
 				throw new Error(pullResponse.error);
 			}
 
-			let dataToSync = internalStorage;
-			let shouldPush = false;
-
 			const serverData = pullResponse.data ?? createDefaultInternalStorage();
 
 			const {
@@ -242,8 +239,6 @@ export function createSyncableStore<S extends Schema>(
 				changes,
 				serverNeedsUpdate,
 			} = mergeAndCleanup(internalStorage, serverData, schema, clock());
-			dataToSync = cleanedMerged;
-			shouldPush = serverNeedsUpdate;
 
 			if (changes.length > 0) {
 				internalStorage = cleanedMerged;
@@ -259,7 +254,7 @@ export function createSyncableStore<S extends Schema>(
 				scheduleStorageSave(true);
 			}
 
-			if (shouldPush) {
+			if (serverNeedsUpdate) {
 				const clockBigInt = BigInt(clock());
 				const newCounter =
 					clockBigInt > pullResponse.counter ? clockBigInt : pullResponse.counter + 1n;

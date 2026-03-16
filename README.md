@@ -101,13 +101,14 @@ For apps that support multiple accounts (e.g., wallet-connected dApps):
 import {
   createMultiAccountStore,
   createSyncableStoreFactory,
+  createLocalStorageAdapterFactory,
 } from 'synqable';
 
 // Create a factory that generates stores per account
 const factory = createSyncableStoreFactory({
   schema,
   storage: {
-    adapterFactory: () => createLocalStorageAdapter(),
+    adapterFactory: createLocalStorageAdapterFactory(),
     key: (account) => `my-app-${account}`,
   },
   defaultData: () => ({
@@ -129,6 +130,39 @@ multiStore.subscribe((store) => {
   } else {
     // No account connected
   }
+});
+```
+
+### Multi-Account with Encryption
+
+When using encryption with multi-account, provide an `AccountWithSigner` store instead of a plain address store:
+
+```typescript
+import {
+  createMultiAccountStore,
+  createSyncableStoreFactory,
+  createLocalStorageAdapterFactory,
+  createAesGcmProvider,
+  type AccountWithSigner,
+} from 'synqable';
+
+// Account store that provides both address and privateKey
+const accountStore: Readable<AccountWithSigner | undefined> = // from wallet
+
+// Factory with encryption support
+const factory = createSyncableStoreFactory({
+  schema,
+  storage: {
+    adapterFactory: createLocalStorageAdapterFactory(createAesGcmProvider),
+    key: (account) => `my-app-${account}`,
+  },
+  defaultData: () => ({ settings: {}, tasks: {} }),
+});
+
+// Multi-account manager - automatically passes privateKey for encryption
+const multiStore = createMultiAccountStore({
+  accountStore, // Emits { owner: '0x...', privateKey: '0x...' }
+  factory,
 });
 ```
 
@@ -170,6 +204,98 @@ const store = createSyncableStore({
       maxRetries: 3,         // Retry failed syncs
     },
   },
+});
+```
+
+## Encryption
+
+Encrypt local storage data using AES-GCM encryption derived from a private key:
+
+```typescript
+import {
+  createLocalStorageAdapterFactory,
+  createAesGcmProvider,
+} from 'synqable';
+
+// Create a factory that supports encryption
+const storageFactory = createLocalStorageAdapterFactory(createAesGcmProvider);
+
+const store = createSyncableStore({
+  schema,
+  account: '0x1234...',
+  privateKey: '0xabc123...', // When provided, data is encrypted
+  storage: {
+    adapterFactory: storageFactory,
+    key: 'my-app-data',
+  },
+  defaultData: () => ({ settings: {}, tasks: {} }),
+});
+```
+
+When `privateKey` is provided and the storage adapter factory supports encryption:
+- All data is encrypted before saving to localStorage
+- Data is decrypted when loading
+- Encrypted data uses the `enc:` prefix for detection
+- Plain data can still be read (migration-friendly)
+
+## Built-in Sync Adapter: secp256k1-db
+
+For Ethereum wallet-based apps, use the built-in secp256k1-db sync adapter. This adapter works with [secp256k1-db](https://github.com/wighawag/secp256k1-db), a Cloudflare Workers service that allows Ethereum wallets to store and retrieve signed data.
+
+```typescript
+import {
+  createSyncableStore,
+  createSecp256k1DBAdapterFactory,
+} from 'synqable';
+
+const syncAdapterFactory = createSecp256k1DBAdapterFactory({
+  endpoint: 'https://your-secp256k1-db.workers.dev',
+  namespace: 'my-app',
+  encrypted: true, // Enable end-to-end encryption (default)
+});
+
+const store = createSyncableStore({
+  schema,
+  account: '0x1234...',
+  privateKey: '0xabc123...', // Used for both signing and encryption
+  storage: { adapterFactory: storageFactory, key: 'my-app' },
+  defaultData: () => ({ settings: {}, tasks: {} }),
+  sync: {
+    adapterFactory: syncAdapterFactory,
+    options: { debounceMs: 1000 },
+  },
+});
+```
+
+The `privateKey` is used for:
+1. **Signing** - Creating signatures for authenticated writes to secp256k1-db
+2. **Encryption** - Encrypting data before sending to server (when `encrypted: true`)
+
+### Using with Wallet Libraries
+
+You can also create signers from existing wallet libraries:
+
+```typescript
+import {
+  fromViemWalletClient,
+  fromEthersSigner,
+  fromPrivateKey,
+  createSecp256k1DBSyncAdapterFactory,
+} from 'synqable';
+
+// Using viem
+const signer = fromViemWalletClient(walletClient, account);
+
+// Using ethers.js
+const signer = fromEthersSigner(ethersSigner);
+
+// Using raw private key
+const signer = fromPrivateKey('0x...');
+
+const syncAdapterFactory = createSecp256k1DBSyncAdapterFactory({
+  endpoint: 'https://your-secp256k1-db.workers.dev',
+  namespace: 'my-app',
+  signer,
 });
 ```
 
