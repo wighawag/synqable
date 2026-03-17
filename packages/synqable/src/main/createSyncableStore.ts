@@ -734,6 +734,96 @@ export function createSyncableStore<S extends Schema>(
 			markDirty();
 		},
 
+		patch<K extends PermanentKeys<S>>(
+			field: K,
+			updateFn: (current: ExtractPermanent<S[K]>) => ExtractPermanent<S[K]>,
+			options?: MutationOptions,
+		): void {
+			if (asyncState.status !== 'ready' || !internalStorage) {
+				throw new Error('Store is not ready');
+			}
+
+			const now = clock();
+			const current = (internalStorage.data as Record<string, unknown>)[
+				field as string
+			] as ExtractPermanent<S[K]>;
+			let newValue = updateFn(current);
+
+			// If same reference, create a new one to ensure change detection
+			if (newValue === current) {
+				newValue = {...(newValue as object)} as ExtractPermanent<S[K]>;
+			}
+
+			(internalStorage.data as Record<string, unknown>)[field as string] = newValue;
+			(internalStorage.$timestamps as Record<string, number>)[field as string] = now;
+
+			asyncState = {...asyncState, data: {...internalStorage.data}};
+
+			emitter.emit(
+				`${String(field)}:changed` as keyof StoreEventsWithSync<S>,
+				newValue as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
+			);
+
+			scheduleStorageSave(options?.immediate);
+			markDirty();
+		},
+
+		patchItem<K extends MapKeys<S>>(
+			field: K,
+			key: string,
+			updateFn: (current: ExtractMapItem<S[K]>) => ExtractMapItem<S[K]>,
+			options?: MutationOptions,
+		): void {
+			if (asyncState.status !== 'ready' || !internalStorage) {
+				throw new Error('Store is not ready');
+			}
+
+			const items = ((internalStorage.data as Record<string, unknown>)[field as string] ??
+				{}) as Record<string, {deleteAt: number}>;
+			const existing = items[key];
+
+			if (!existing) {
+				throw new Error(`Item ${key} does not exist in ${String(field)}`);
+			}
+
+			const now = clock();
+			const timestamps =
+				(internalStorage.$itemTimestamps as Record<string, Record<string, number>>)[
+					field as string
+				] ?? {};
+
+			// Extract deleteAt before calling updateFn, then restore it
+			const {deleteAt} = existing;
+			// Pass item without deleteAt to updateFn (as ExtractMapItem doesn't include deleteAt)
+			const currentWithoutDeleteAt = {...existing};
+			delete (currentWithoutDeleteAt as Record<string, unknown>).deleteAt;
+			let newValue = updateFn(currentWithoutDeleteAt as ExtractMapItem<S[K]>);
+
+			// If same reference, create a new one to ensure change detection
+			if (newValue === currentWithoutDeleteAt) {
+				newValue = {...(newValue as object)} as ExtractMapItem<S[K]>;
+			}
+
+			// Restore deleteAt
+			const updatedItem = {...(newValue as object), deleteAt} as {deleteAt: number};
+			items[key] = updatedItem;
+			timestamps[key] = now;
+
+			(internalStorage.data as Record<string, unknown>)[field as string] = items;
+			(internalStorage.$itemTimestamps as Record<string, Record<string, number>>)[field as string] =
+				timestamps;
+
+			asyncState = {...asyncState, data: {...internalStorage.data}};
+
+			emitter.emit(
+				`${String(field)}:updated` as keyof StoreEventsWithSync<S>,
+				{key, item: updatedItem} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
+			);
+
+			scheduleStorageSave(options?.immediate);
+			markDirty();
+		},
+
 		removeItem<K extends MapKeys<S>>(field: K, key: string, options?: MutationOptions): void {
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');

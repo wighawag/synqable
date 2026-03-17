@@ -476,6 +476,21 @@ export interface SyncableStore<S extends Schema> {
 		options?: MutationOptions,
 	): void;
 
+	/** Patch a permanent field using an update function. Always creates a new reference. */
+	patch<K extends PermanentKeys<S>>(
+		field: K,
+		updateFn: (current: ExtractPermanent<S[K]>) => ExtractPermanent<S[K]>,
+		options?: MutationOptions,
+	): void;
+
+	/** Patch an existing map item using an update function. Always creates a new reference. */
+	patchItem<K extends MapKeys<S>>(
+		field: K,
+		key: string,
+		updateFn: (current: ExtractMapItem<S[K]>) => ExtractMapItem<S[K]>,
+		options?: MutationOptions,
+	): void;
+
 	/** Remove an item from a map field */
 	removeItem<K extends MapKeys<S>>(field: K, key: string, options?: MutationOptions): void;
 
