@@ -1,5 +1,11 @@
 # synqable
 
+## 0.0.10
+
+### Patch Changes
+
+- logging for storage
+
 ## 0.0.9
 
 ### Patch Changes
