@@ -7,6 +7,9 @@ import type {Serializer} from '../serializer/types.js';
 import type {EncryptionProviderFactory} from '../encryption/types.js';
 import {createJsonSerializer} from '../serializer/types.js';
 import {wrapWithEncryption} from '../encryption/wrap.js';
+import {logs} from 'named-logs';
+
+const logger = logs('synqable:storage');
 
 interface WatcherEntry<T> {
 	callback: StorageChangeCallback<T>;
@@ -74,33 +77,55 @@ function createAdapter<T>(
 ): WatchableStorage<T> {
 	return {
 		async load(key: string): Promise<T | undefined> {
+			logger.debug('load', {key});
 			try {
 				const stored = localStorage.getItem(key);
-				if (!stored) return undefined;
+				logger.debug('load:raw', {key, hasData: stored !== null, length: stored?.length ?? 0});
+				if (!stored) {
+					logger.debug('load:empty', {key});
+					return undefined;
+				}
 				// Check if deserialize is sync to avoid unnecessary microtask
 				const resultOrPromise = serializer.deserialize(stored);
-				return resultOrPromise instanceof Promise ? await resultOrPromise : resultOrPromise;
-			} catch {
+				const result = resultOrPromise instanceof Promise ? await resultOrPromise : resultOrPromise;
+				logger.debug('load:success', {key, hasResult: result !== undefined});
+				return result;
+			} catch (error) {
+				logger.error('load:error', {key, error});
 				return undefined;
 			}
 		},
 
 		async save(key: string, data: T): Promise<void> {
-			// Check if serialize is sync to avoid unnecessary microtask
-			const resultOrPromise = serializer.serialize(data);
-			const serialized =
-				resultOrPromise instanceof Promise ? await resultOrPromise : resultOrPromise;
-			localStorage.setItem(key, serialized);
+			logger.debug('save', {key, hasData: data !== null && data !== undefined});
+			try {
+				// Check if serialize is sync to avoid unnecessary microtask
+				const resultOrPromise = serializer.serialize(data);
+				const serialized =
+					resultOrPromise instanceof Promise ? await resultOrPromise : resultOrPromise;
+				logger.debug('save:serialized', {key, length: serialized.length});
+				localStorage.setItem(key, serialized);
+				logger.debug('save:success', {key});
+			} catch (error) {
+				logger.error('save:error', {key, error});
+				throw error;
+			}
 		},
 
 		async remove(key: string): Promise<void> {
+			logger.debug('remove', {key});
 			localStorage.removeItem(key);
+			logger.debug('remove:success', {key});
 		},
 
 		async exists(key: string): Promise<boolean> {
+			logger.debug('exists', {key});
 			try {
-				return localStorage.getItem(key) !== null;
-			} catch {
+				const exists = localStorage.getItem(key) !== null;
+				logger.debug('exists:result', {key, exists});
+				return exists;
+			} catch (error) {
+				logger.error('exists:error', {key, error});
 				return false;
 			}
 		},

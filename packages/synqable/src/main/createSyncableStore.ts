@@ -26,6 +26,9 @@ import {cleanup} from './cleanup.js';
 import {mergeAndCleanup} from './merge.js';
 import {createEmitter} from 'radiate';
 import {deepMerge} from './helpers.js';
+import {logs} from 'named-logs';
+
+const logger = logs('synqable:store');
 
 /**
  * Single-Account Syncable Store
@@ -342,9 +345,11 @@ export function createSyncableStore<S extends Schema>(
 	}
 
 	function scheduleStorageSave(immediate = false): void {
+		logger.debug('scheduleStorageSave', {immediate, storageKey, account});
 		storageSavePending = true;
 
 		if (immediate) {
+			logger.debug('scheduleStorageSave:immediate', {storageKey});
 			// Clear any pending debounce and execute now
 			if (storageDebounceTimer) {
 				clearTimeout(storageDebounceTimer);
@@ -356,20 +361,34 @@ export function createSyncableStore<S extends Schema>(
 
 		// Debounce: reset timer on each call
 		if (storageDebounceTimer) {
+			logger.debug('scheduleStorageSave:debounce:reset', {
+				storageKey,
+				debounceMs: storageDebounceMs,
+			});
 			clearTimeout(storageDebounceTimer);
 		}
 
+		logger.debug('scheduleStorageSave:debounce:scheduled', {
+			storageKey,
+			debounceMs: storageDebounceMs,
+		});
 		storageDebounceTimer = setTimeout(() => {
 			storageDebounceTimer = undefined;
+			logger.debug('scheduleStorageSave:debounce:fired', {storageKey});
 			performStorageSave();
 		}, storageDebounceMs);
 	}
 
 	async function performStorageSave(): Promise<void> {
-		if (!storageSavePending) return;
+		logger.debug('performStorageSave', {storageKey, account, storageSavePending, isStorageSaving});
+		if (!storageSavePending) {
+			logger.debug('performStorageSave:skip:noPending', {storageKey});
+			return;
+		}
 
 		// If already saving, just ensure flag is set - will be processed after
 		if (isStorageSaving) {
+			logger.debug('performStorageSave:skip:alreadySaving', {storageKey});
 			return;
 		}
 
@@ -377,15 +396,24 @@ export function createSyncableStore<S extends Schema>(
 		storageSavePending = false;
 		mutableStorageStatus.isSaving = true;
 		emitStorageEvent({type: 'saving'});
+		logger.debug('performStorageSave:start', {storageKey, hasInternalStorage: !!internalStorage});
 
 		try {
 			// Use internalStorage reference directly - always has latest state
 			if (internalStorage) {
+				logger.debug('performStorageSave:calling:save', {storageKey});
 				await storageAdapter.save(storageKey, internalStorage);
 				mutableStorageStatus.lastSavedAt = clock();
 				mutableStorageStatus.storageError = null;
+				logger.debug('performStorageSave:success', {
+					storageKey,
+					lastSavedAt: mutableStorageStatus.lastSavedAt,
+				});
+			} else {
+				logger.warn('performStorageSave:noInternalStorage', {storageKey});
 			}
 		} catch (error) {
+			logger.error('performStorageSave:error', {storageKey, error});
 			mutableStorageStatus.storageError = error as Error;
 			emitStorageEvent({type: 'failed', error: error as Error});
 		} finally {
@@ -393,9 +421,11 @@ export function createSyncableStore<S extends Schema>(
 
 			// Process any changes that came in during save
 			if (storageSavePending) {
+				logger.debug('performStorageSave:requeue', {storageKey});
 				await performStorageSave();
 			} else {
 				mutableStorageStatus.isSaving = false;
+				logger.debug('performStorageSave:complete', {storageKey});
 				emitStorageEvent({
 					type: 'saved',
 					timestamp: mutableStorageStatus.lastSavedAt ?? clock(),
@@ -484,34 +514,57 @@ export function createSyncableStore<S extends Schema>(
 	}
 
 	async function load(): Promise<void> {
+		logger.info('load', {storageKey, account});
 		if (asyncState.status !== 'idle' || asyncState.isLoading) {
+			logger.warn('load:skip:alreadyLoadedOrLoading', {
+				storageKey,
+				status: asyncState.status,
+				isLoading: asyncState.isLoading,
+			});
 			throw new Error('Store already loaded or loading');
 		}
 
 		asyncState = {status: 'idle', account, isLoading: true, loadError: null};
 		emitStateEvent({type: 'loading'});
+		logger.debug('load:start', {storageKey});
 
 		try {
+			logger.debug('load:calling:storageAdapter.load', {storageKey});
 			const localData = await storageAdapter.load(storageKey);
+			logger.debug('load:storageAdapter.load:result', {
+				storageKey,
+				hasLocalData: !!localData,
+				version: localData?.$version,
+			});
 
 			if (localData) {
 				const storedVersion = localData.$version ?? 0;
+				logger.debug('load:localData:found', {storageKey, storedVersion, schemaVersion});
 
 				if (storedVersion < schemaVersion) {
+					logger.debug('load:migration:start', {
+						storageKey,
+						from: storedVersion,
+						to: schemaVersion,
+					});
 					let migrated: unknown = localData;
 					for (let v = storedVersion + 1; v <= schemaVersion; v++) {
 						const migration = migrations?.[v];
 						if (!migration) {
+							logger.error('load:migration:missing', {storageKey, version: v});
 							throw new Error(`Missing migration for version ${v}`);
 						}
+						logger.debug('load:migration:applying', {storageKey, version: v});
 						migrated = migration(migrated);
 						(migrated as {$version: number}).$version = v;
 					}
+					logger.debug('load:migration:complete', {storageKey, version: schemaVersion});
 					internalStorage = migrated as InternalStorage<S>;
 				} else {
 					internalStorage = localData;
 				}
 			} else {
+				logger.debug('load:noLocalData:creatingDefault', {storageKey});
 				internalStorage = createDefaultInternalStorage();
 			}
 
@@ -521,6 +574,7 @@ export function createSyncableStore<S extends Schema>(
 				// tombstonesDeleted,
 			} = cleanup(internalStorage, schema, clock());
 			internalStorage = cleanedStorage;
+			logger.debug('load:cleanup:complete', {storageKey});
 
 			// Cleanup results will be persisted when the next mutation or sync occurs
 
@@ -532,14 +586,18 @@ export function createSyncableStore<S extends Schema>(
 				data: internalStorage.data,
 			};
 			emitStateEvent({type: 'ready'});
+			logger.info('load:ready', {storageKey, account});
 
 			if (syncAdapter) {
+				logger.debug('load:triggerSync', {storageKey});
 				performSync();
 			}
 
 			setupStorageWatch();
 			setupGlobalListeners();
+			logger.debug('load:setupComplete', {storageKey});
 		} catch (error) {
+			logger.error('load:error', {storageKey, error});
 			const loadError = error as Error;
 			asyncState = {status: 'idle', account, isLoading: false, loadError};
 			emitStateEvent({type: 'idle', error: loadError});
