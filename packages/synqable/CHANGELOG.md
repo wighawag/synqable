@@ -1,5 +1,11 @@
 # synqable
 
+## 0.0.9
+
+### Patch Changes
+
+- 1813233: patch
+
 ## 0.0.8
 
 ### Patch Changes
