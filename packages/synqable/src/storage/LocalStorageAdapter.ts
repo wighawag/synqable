@@ -91,6 +91,7 @@ function createAdapter<T>(
 				logger.debug('load:success', {key, hasResult: result !== undefined});
 				return result;
 			} catch (error) {
+				console.error(`failed to load ${key}`, error);
 				logger.error('load:error', {key, error});
 				return undefined;
 			}
@@ -107,6 +108,7 @@ function createAdapter<T>(
 				localStorage.setItem(key, serialized);
 				logger.debug('save:success', {key});
 			} catch (error) {
+				console.error(`failed to save ${key}`, error);
 				logger.error('save:error', {key, error});
 				throw error;
 			}
@@ -114,7 +116,11 @@ function createAdapter<T>(
 
 		async remove(key: string): Promise<void> {
 			logger.debug('remove', {key});
-			localStorage.removeItem(key);
+			try {
+				localStorage.removeItem(key);
+			} catch (error) {
+				console.error(`failed to remove ${key}`, error);
+			}
 			logger.debug('remove:success', {key});
 		},
 
@@ -125,6 +131,7 @@ function createAdapter<T>(
 				logger.debug('exists:result', {key, exists});
 				return exists;
 			} catch (error) {
+				console.error(`failed to check existence of ${key}`, error);
 				logger.error('exists:error', {key, error});
 				return false;
 			}
