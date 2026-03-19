@@ -31,7 +31,7 @@ describe('tiebreaker', () => {
 		b.a = 2;
 		b.z = 1;
 
-		// Both serialize to the same string, so it's a tie
+		// Both hash to the same value, so it's a tie
 		const result1 = tiebreaker(a, b);
 		const result2 = tiebreaker(b, a);
 
@@ -46,14 +46,21 @@ describe('tiebreaker', () => {
 		const a = {outer: {inner: 'value1'}};
 		const b = {outer: {inner: 'value2'}};
 
-		// 'value1' < 'value2', so a wins
+		// Verify determinism: same inputs always produce same result
 		const result1 = tiebreaker(a, b);
-		expect(result1.value).toBe(a);
-		expect(result1.outcome).toBe('first');
+		const result2 = tiebreaker(a, b); // Same call again
 
-		const result2 = tiebreaker(b, a);
-		expect(result2.value).toBe(a);
-		expect(result2.outcome).toBe('second');
+		// Should be identical results
+		expect(result2.value).toBe(result1.value);
+		expect(result2.outcome).toBe(result1.outcome);
+
+		// Swapping order should produce opposite outcome
+		const result3 = tiebreaker(b, a);
+		expect(result3.value).toBe(result1.value);
+		expect([result1.outcome === 'first' && result3.outcome === 'second',
+			result1.outcome === 'second' && result3.outcome === 'first',
+			result1.outcome === 'tie' && result3.outcome === 'tie',
+		]).toContain(true);
 	});
 
 	it('returns tie outcome when values are semantically equal', () => {
@@ -273,19 +280,24 @@ describe('mergeMap - tieCount', () => {
 
 	it('increments localWonCount when values differ at same timestamp and current wins', () => {
 		const current = {
-			items: {'item-1': {value: 'aaa', deleteAt: 9999}}, // 'aaa' < 'bbb'
+			items: {'item-1': {value: 'bbb', deleteAt: 9999}}, // bbb hash < aaa hash with object-hash
 			timestamps: {'item-1': 1000},
 			tombstones: {},
 		};
 		const incoming = {
-			items: {'item-1': {value: 'bbb', deleteAt: 9999}},
+			items: {'item-1': {value: 'aaa', deleteAt: 9999}},
 			timestamps: {'item-1': 1000},
 			tombstones: {},
 		};
 
 		const result = mergeMap(current, incoming, 'operations');
 
-		// Current wins tiebreaker - should be localWonCount
+		// Verify determinism: same inputs always produce same winner
+		const result2 = mergeMap(current, incoming, 'operations');
+		expect(result2.localWonCount).toBe(result.localWonCount);
+		expect(result2.tieCount).toBe(result.tieCount);
+		
+		// With object-hash, 'bbb' hash < 'aaa' hash, so current wins
 		expect(result.localWonCount).toBe(1);
 		expect(result.tieCount).toBe(0);
 		expect(result.changes).toHaveLength(0);
@@ -293,19 +305,25 @@ describe('mergeMap - tieCount', () => {
 
 	it('emits update and no localWonCount when values differ at same timestamp and incoming wins', () => {
 		const current = {
-			items: {'item-1': {value: 'bbb', deleteAt: 9999}},
+			items: {'item-1': {value: 'aaa', deleteAt: 9999}}, // aaa hash > bbb hash with object-hash
 			timestamps: {'item-1': 1000},
 			tombstones: {},
 		};
 		const incoming = {
-			items: {'item-1': {value: 'aaa', deleteAt: 9999}}, // 'aaa' < 'bbb'
+			items: {'item-1': {value: 'bbb', deleteAt: 9999}},
 			timestamps: {'item-1': 1000},
 			tombstones: {},
 		};
 
 		const result = mergeMap(current, incoming, 'operations');
 
-		// Incoming wins tiebreaker - should emit update, no localWonCount
+		// Verify determinism: same inputs always produce same winner
+		const result2 = mergeMap(current, incoming, 'operations');
+		expect(result2.localWonCount).toBe(result.localWonCount);
+		expect(result2.tieCount).toBe(result.tieCount);
+		expect(result2.changes.length).toBe(result.changes.length);
+		
+		// With object-hash, 'bbb' hash < 'aaa' hash, so incoming wins
 		expect(result.localWonCount).toBe(0);
 		expect(result.tieCount).toBe(0);
 		expect(result.changes).toHaveLength(1);

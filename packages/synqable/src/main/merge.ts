@@ -4,7 +4,7 @@
  * Deterministic merge using "higher timestamp wins" with tiebreaker.
  */
 
-import stableStringify from 'json-stable-stringify';
+import hash from 'object-hash';
 import type {
 	Schema,
 	InternalStorage,
@@ -33,17 +33,17 @@ export interface TiebreakerResult<T> {
 
 /**
  * Deterministic tiebreaker for values with identical timestamps.
- * Uses json-stable-stringify for deterministic property order.
+ * Uses object-hash for deterministic hashing with BigInt support.
  */
 export function tiebreaker<T>(a: T, b: T): TiebreakerResult<T> {
-	const aStr = stableStringify(a) ?? '';
-	const bStr = stableStringify(b) ?? '';
+	const aHash = hash(a as unknown as Record<string, unknown>);
+	const bHash = hash(b as unknown as Record<string, unknown>);
 
-	if (aStr === bStr) {
+	if (aHash === bHash) {
 		return {value: a, outcome: 'tie'};
 	}
 
-	if (aStr < bStr) {
+	if (aHash < bHash) {
 		return {value: a, outcome: 'first'};
 	}
 	return {value: b, outcome: 'second'};
