@@ -1,5 +1,11 @@
 # synqable
 
+## 0.0.11
+
+### Patch Changes
+
+- 935a57b: use object-hash for tie-brak
+
 ## 0.0.10
 
 ### Patch Changes

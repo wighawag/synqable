@@ -57,7 +57,8 @@ describe('tiebreaker', () => {
 		// Swapping order should produce opposite outcome
 		const result3 = tiebreaker(b, a);
 		expect(result3.value).toBe(result1.value);
-		expect([result1.outcome === 'first' && result3.outcome === 'second',
+		expect([
+			result1.outcome === 'first' && result3.outcome === 'second',
 			result1.outcome === 'second' && result3.outcome === 'first',
 			result1.outcome === 'tie' && result3.outcome === 'tie',
 		]).toContain(true);
@@ -296,7 +297,7 @@ describe('mergeMap - tieCount', () => {
 		const result2 = mergeMap(current, incoming, 'operations');
 		expect(result2.localWonCount).toBe(result.localWonCount);
 		expect(result2.tieCount).toBe(result.tieCount);
-		
+
 		// With object-hash, 'bbb' hash < 'aaa' hash, so current wins
 		expect(result.localWonCount).toBe(1);
 		expect(result.tieCount).toBe(0);
@@ -322,7 +323,7 @@ describe('mergeMap - tieCount', () => {
 		expect(result2.localWonCount).toBe(result.localWonCount);
 		expect(result2.tieCount).toBe(result.tieCount);
 		expect(result2.changes.length).toBe(result.changes.length);
-		
+
 		// With object-hash, 'bbb' hash < 'aaa' hash, so incoming wins
 		expect(result.localWonCount).toBe(0);
 		expect(result.tieCount).toBe(0);
