@@ -496,7 +496,7 @@ export interface SyncableStore<S extends Schema> {
 	): void;
 
 	/** Remove an item from a map field */
-	removeItem<K extends MapKeys<S>>(field: K, key: string, options?: MutationOptions): void;
+	removeItem<K extends MapKeys<S>>(field: K, key: string, options?: RemovalMutationOptions): void;
 
 	/** Subscribe to type-safe events */
 	on<E extends keyof StoreEventsWithSync<S>>(

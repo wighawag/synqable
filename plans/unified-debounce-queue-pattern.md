@@ -92,7 +92,7 @@ export interface SyncableStore<S extends Schema> {
     remove<K extends MapKeys<S>>(
         field: K, 
         key: string, 
-        options?: MutationOptions
+        options?: RemovalMutationOptions
     ): void;
     
     // ... rest unchanged

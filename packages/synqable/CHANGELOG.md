@@ -1,5 +1,11 @@
 # synqable
 
+## 0.0.13
+
+### Patch Changes
+
+- fix types
+
 ## 0.0.12
 
 ### Patch Changes
