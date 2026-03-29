@@ -16,7 +16,7 @@ import type {
 	SyncableStore,
 	Readable,
 	MapField,
-	FieldReadable,
+	RemovalMutationOptions,
 } from './types.js';
 
 import type {SyncStatus, StoreEventsWithSync} from '../sync/types.js';
@@ -882,7 +882,11 @@ export function createSyncableStore<S extends Schema>(
 			markDirty();
 		},
 
-		removeItem<K extends MapKeys<S>>(field: K, key: string, options?: MutationOptions): void {
+		removeItem<K extends MapKeys<S>>(
+			field: K,
+			key: string,
+			options?: RemovalMutationOptions,
+		): void {
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
@@ -892,7 +896,11 @@ export function createSyncableStore<S extends Schema>(
 			const existing = items[key];
 
 			if (!existing) {
-				throw new Error(`Item ${key} does not exist in ${String(field)}`);
+				if (options?.ignoreMissing) {
+					return;
+				} else {
+					throw new Error(`Item ${key} does not exist in ${String(field)}`);
+				}
 			}
 
 			const tombstones =

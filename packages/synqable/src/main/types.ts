@@ -294,6 +294,10 @@ export interface MutationOptions {
 	immediate?: boolean;
 }
 
+export interface RemovalMutationOptions extends MutationOptions {
+	ignoreMissing?: boolean;
+}
+
 // ============================================================================
 // Readable Store Interface (Svelte store contract)
 // ============================================================================

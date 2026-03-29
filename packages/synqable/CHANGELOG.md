@@ -1,5 +1,11 @@
 # synqable
 
+## 0.0.12
+
+### Patch Changes
+
+- add ignoreMissing option to not throw on removing item already removed
+
 ## 0.0.11
 
 ### Patch Changes
