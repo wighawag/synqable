@@ -330,7 +330,7 @@ export function createMultiAccountStore<S extends Schema>(
 	): S[K] extends MapField<unknown> ? Readable<DataOf<S>[K]> : Readable<DataOf<S>[K] | undefined> {
 		const fieldDef = schema[field];
 		const isMap = fieldDef.__type === 'map';
-		// Map fields use empty {} as default, permanent fields use undefined
+		// Map fields use empty {} as default; value and record fields use undefined
 		const defaultValue = (isMap ? {} : undefined) as DataOf<S>[K] | undefined;
 
 		return createDerivedReadable<DataOf<S>[K] | undefined>(

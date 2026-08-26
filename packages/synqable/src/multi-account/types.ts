@@ -146,7 +146,7 @@ export interface MultiAccountStore<S extends Schema> {
 
 	/**
 	 * Watch a field reactively across account switches.
-	 * - For permanent fields: Returns undefined when no account is connected or store is loading.
+	 * - For value and record fields: Returns undefined when no account is connected or store is loading.
 	 * - For map fields: Returns empty {} when no account is connected, never undefined.
 	 */
 	watchField<K extends keyof S>(

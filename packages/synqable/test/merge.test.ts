@@ -1,11 +1,13 @@
 import {describe, it, expect} from 'vitest';
 import {
 	tiebreaker,
-	mergePermanent,
+	mergeValue,
 	mergeMap,
+	mergeRecord,
 	mergeStore,
 	defineSchema,
-	permanent,
+	value,
+	record,
 	map,
 } from '../src/index.js';
 
@@ -74,12 +76,12 @@ describe('tiebreaker', () => {
 	});
 });
 
-describe('mergePermanent', () => {
+describe('mergeValue', () => {
 	it('returns incoming value when incoming timestamp is higher', () => {
 		const current = {value: {name: 'old'}, timestamp: 1000};
 		const incoming = {value: {name: 'new'}, timestamp: 2000};
 
-		const result = mergePermanent(current, incoming);
+		const result = mergeValue(current, incoming);
 
 		expect(result.value).toBe(incoming.value);
 		expect(result.timestamp).toBe(2000);
@@ -90,7 +92,7 @@ describe('mergePermanent', () => {
 		const current = {value: {name: 'current'}, timestamp: 3000};
 		const incoming = {value: {name: 'incoming'}, timestamp: 2000};
 
-		const result = mergePermanent(current, incoming);
+		const result = mergeValue(current, incoming);
 
 		expect(result.value).toBe(current.value);
 		expect(result.timestamp).toBe(3000);
@@ -101,7 +103,7 @@ describe('mergePermanent', () => {
 		const current = {value: {name: 'bob'}, timestamp: 1000};
 		const incoming = {value: {name: 'alice'}, timestamp: 1000};
 
-		const result = mergePermanent(current, incoming);
+		const result = mergeValue(current, incoming);
 
 		// 'alice' < 'bob' lexicographically, so incoming wins
 		expect(result.value).toStrictEqual({name: 'alice'});
@@ -113,7 +115,7 @@ describe('mergePermanent', () => {
 		const current = {value: {name: 'alice'}, timestamp: 1000};
 		const incoming = {value: {name: 'bob'}, timestamp: 1000};
 
-		const result = mergePermanent(current, incoming);
+		const result = mergeValue(current, incoming);
 
 		// 'alice' < 'bob' lexicographically, so current wins
 		expect(result.value).toStrictEqual({name: 'alice'});
@@ -125,7 +127,7 @@ describe('mergePermanent', () => {
 		const current = {value: {name: 'alice', age: 30}, timestamp: 1000};
 		const incoming = {value: {name: 'alice', age: 30}, timestamp: 1000};
 
-		const result = mergePermanent(current, incoming);
+		const result = mergeValue(current, incoming);
 
 		// Values are semantically equal - true tie
 		expect(result.value).toStrictEqual({name: 'alice', age: 30});
@@ -335,11 +337,11 @@ describe('mergeMap - tieCount', () => {
 describe('mergeStore', () => {
 	// Define a test schema
 	const testSchema = defineSchema({
-		settings: permanent<{theme: string; volume: number}>(),
+		settings: value<{theme: string; volume: number}>(),
 		operations: map<{tx: string; status: string}>(),
 	});
 
-	it('merges permanent and map fields together', () => {
+	it('merges value and map fields together', () => {
 		const current = {
 			$version: 1,
 			data: {
@@ -375,7 +377,7 @@ describe('mergeStore', () => {
 		expect(result.merged.data.operations['op-1']).toBeDefined();
 		expect(result.merged.data.operations['op-1'].tx).toBe('0xabc');
 
-		// Changes should include both permanent and map changes
+		// Changes should include both value and map changes
 		expect(result.changes.length).toBe(2);
 		expect(result.changes.some((c) => c.event === 'settings:changed')).toBe(true);
 		expect(result.changes.some((c) => c.event === 'operations:added')).toBe(true);
@@ -569,5 +571,274 @@ describe('mergeStore', () => {
 		expect(result.merged.data.settings.theme).toBe('aaa');
 		expect(result.hasLocalChanges).toBe(true); // local won with different data
 		expect(result.changes).toHaveLength(0);
+	});
+});
+
+// ============================================================================
+// Record field merge - per-property last-writer-wins
+// ============================================================================
+
+describe('mergeRecord', () => {
+	it('keeps each property from whichever device edited it last', () => {
+		const current = {
+			value: {theme: 'dark', fontSize: 12},
+			timestamps: {theme: 300, fontSize: 100},
+		};
+		const incoming = {
+			value: {theme: 'light', fontSize: 18},
+			timestamps: {theme: 100, fontSize: 400},
+		};
+
+		const result = mergeRecord(current, incoming, 'settings');
+
+		expect(result.value).toStrictEqual({theme: 'dark', fontSize: 18});
+		expect(result.timestamps).toStrictEqual({theme: 300, fontSize: 400});
+	});
+
+	it('converges to the same result regardless of merge order', () => {
+		const a = {value: {theme: 'dark', fontSize: 12}, timestamps: {theme: 300, fontSize: 100}};
+		const b = {value: {theme: 'light', fontSize: 18}, timestamps: {theme: 100, fontSize: 400}};
+
+		const ab = mergeRecord(a, b, 'settings');
+		const ba = mergeRecord(b, a, 'settings');
+
+		expect(ab.value).toStrictEqual(ba.value);
+		expect(ab.timestamps).toStrictEqual(ba.timestamps);
+	});
+
+	it('respects timestamps for falsy property values', () => {
+		// Regression guard: a truthiness-based merge silently drops the newer value here.
+		const current = {value: {darkMode: false}, timestamps: {darkMode: 200}};
+		const incoming = {value: {darkMode: true}, timestamps: {darkMode: 100}};
+
+		const result = mergeRecord(current, incoming, 'settings');
+
+		expect(result.value).toStrictEqual({darkMode: false});
+		expect(result.timestamps.darkMode).toBe(200);
+		expect(result.localWonCount).toBe(1);
+	});
+
+	it('respects timestamps for zero and empty-string property values', () => {
+		const current = {value: {fontSize: 0, name: ''}, timestamps: {fontSize: 999, name: 500}};
+		const incoming = {value: {fontSize: 14, name: 'old'}, timestamps: {fontSize: 1, name: 1}};
+
+		const result = mergeRecord(current, incoming, 'settings');
+
+		expect(result.value).toStrictEqual({fontSize: 0, name: ''});
+	});
+
+	it('reports which properties the incoming device won so a change can be emitted', () => {
+		const current = {value: {theme: 'dark', fontSize: 12}, timestamps: {theme: 300, fontSize: 100}};
+		const incoming = {
+			value: {theme: 'light', fontSize: 18},
+			timestamps: {theme: 100, fontSize: 400},
+		};
+
+		const result = mergeRecord(current, incoming, 'settings');
+
+		expect(result.changedProperties).toStrictEqual(['fontSize']);
+		expect(result.localWonCount).toBe(1);
+	});
+
+	it('reports no change when both devices hold identical properties', () => {
+		const current = {value: {theme: 'dark'}, timestamps: {theme: 300}};
+		const incoming = {value: {theme: 'dark'}, timestamps: {theme: 300}};
+
+		const result = mergeRecord(current, incoming, 'settings');
+
+		expect(result.changedProperties).toStrictEqual([]);
+		expect(result.localWonCount).toBe(0);
+		expect(result.tieCount).toBe(1);
+	});
+
+	it('adopts a property that only the incoming device has', () => {
+		const current = {value: {theme: 'dark'}, timestamps: {theme: 300}};
+		const incoming = {value: {theme: 'dark', fontSize: 14}, timestamps: {theme: 300, fontSize: 50}};
+
+		const result = mergeRecord(current, incoming, 'settings');
+
+		expect(result.value).toStrictEqual({theme: 'dark', fontSize: 14});
+		expect(result.changedProperties).toStrictEqual(['fontSize']);
+	});
+
+	it('keeps a property that only the local device has and flags it for re-push', () => {
+		const current = {value: {theme: 'dark', fontSize: 14}, timestamps: {theme: 300, fontSize: 50}};
+		const incoming = {value: {theme: 'dark'}, timestamps: {theme: 300}};
+
+		const result = mergeRecord(current, incoming, 'settings');
+
+		expect(result.value).toStrictEqual({theme: 'dark', fontSize: 14});
+		expect(result.localWonCount).toBe(1);
+	});
+
+	it('breaks ties on equal timestamps deterministically', () => {
+		const a = {value: {theme: 'aaa'}, timestamps: {theme: 500}};
+		const b = {value: {theme: 'zzz'}, timestamps: {theme: 500}};
+
+		expect(mergeRecord(a, b, 'settings').value).toStrictEqual(mergeRecord(b, a, 'settings').value);
+	});
+});
+
+// ============================================================================
+// mergeStore with record fields
+// ============================================================================
+
+describe('mergeStore - record fields', () => {
+	const recordSchema = defineSchema({
+		settings: record<{theme: string; fontSize: number}>(),
+		operations: map<{tx: string; status: string}>(),
+	});
+
+	function storage(
+		settings: {theme: string; fontSize: number},
+		settingsTimestamps: Record<string, number>,
+	) {
+		return {
+			$version: 1,
+			data: {settings, operations: {}},
+			$timestamps: {},
+			$itemTimestamps: {settings: settingsTimestamps, operations: {}},
+			$tombstones: {operations: {}},
+		};
+	}
+
+	it('merges each property independently instead of replacing the struct', () => {
+		const deviceA = storage({theme: 'dark', fontSize: 12}, {theme: 300, fontSize: 100});
+		const deviceB = storage({theme: 'light', fontSize: 18}, {theme: 100, fontSize: 400});
+
+		const result = mergeStore(deviceA, deviceB, recordSchema);
+
+		expect(result.merged.data.settings).toStrictEqual({theme: 'dark', fontSize: 18});
+		expect(result.merged.$itemTimestamps.settings).toStrictEqual({theme: 300, fontSize: 400});
+	});
+
+	it('two devices editing different properties converge to both edits', () => {
+		const deviceA = storage({theme: 'dark', fontSize: 12}, {theme: 300, fontSize: 100});
+		const deviceB = storage({theme: 'light', fontSize: 18}, {theme: 100, fontSize: 400});
+
+		const ab = mergeStore(deviceA, deviceB, recordSchema);
+		const ba = mergeStore(deviceB, deviceA, recordSchema);
+
+		expect(ab.merged.data.settings).toStrictEqual(ba.merged.data.settings);
+	});
+
+	it('emits a single field-level changed event carrying the merged value', () => {
+		const deviceA = storage({theme: 'dark', fontSize: 12}, {theme: 300, fontSize: 100});
+		const deviceB = storage({theme: 'light', fontSize: 18}, {theme: 100, fontSize: 400});
+
+		const result = mergeStore(deviceA, deviceB, recordSchema);
+
+		expect(result.changes).toStrictEqual([
+			{event: 'settings:changed', data: {theme: 'dark', fontSize: 18}},
+		]);
+	});
+
+	it('flags local changes when a local property wins', () => {
+		const deviceA = storage({theme: 'dark', fontSize: 12}, {theme: 300, fontSize: 100});
+		const deviceB = storage({theme: 'light', fontSize: 12}, {theme: 100, fontSize: 100});
+
+		const result = mergeStore(deviceA, deviceB, recordSchema);
+
+		expect(result.hasLocalChanges).toBe(true);
+	});
+
+	it('does not flag pristine default data as a local change', () => {
+		const deviceA = storage({theme: 'dark', fontSize: 12}, {});
+		const deviceB = storage({theme: 'dark', fontSize: 12}, {});
+
+		const result = mergeStore(deviceA, deviceB, recordSchema);
+
+		expect(result.hasLocalChanges).toBe(false);
+		expect(result.changes).toStrictEqual([]);
+	});
+
+	it('falls back to the field-level timestamp for a field converted from value()', () => {
+		// Data written while the field was still `value()`: one field-level timestamp,
+		// no per-property timestamps.
+		const legacy = {
+			$version: 1,
+			data: {settings: {theme: 'light', fontSize: 20}, operations: {}},
+			$timestamps: {settings: 9000},
+			$itemTimestamps: {operations: {}},
+			$tombstones: {operations: {}},
+		};
+		const upgraded = storage({theme: 'dark', fontSize: 12}, {theme: 100, fontSize: 100});
+
+		const result = mergeStore(upgraded, legacy, recordSchema);
+
+		// The legacy write is newer for every property, so it must win throughout.
+		expect(result.merged.data.settings).toStrictEqual({theme: 'light', fontSize: 20});
+	});
+});
+
+describe('mergeRecord - shape validation', () => {
+	// The type layer rejects arrays and primitives at `record<T>()`, but exotic
+	// objects (Date, Map, class instances) satisfy `T extends object`, and JS
+	// consumers have no type layer at all. Merging those silently produced a
+	// corrupted plain object, so they fail loudly instead.
+
+	it('rejects an array, naming the field and the alternative', () => {
+		expect(() =>
+			mergeRecord(
+				{value: ['a', 'b', 'c'] as unknown as object, timestamps: {}},
+				{value: ['x', 'y'] as unknown as object, timestamps: {}},
+				'tags',
+			),
+		).toThrow(/tags.*array.*value</s);
+	});
+
+	it('rejects a primitive instead of throwing an opaque TypeError', () => {
+		expect(() =>
+			mergeRecord(
+				{value: 'hello' as unknown as object, timestamps: {}},
+				{value: 'world' as unknown as object, timestamps: {}},
+				'name',
+			),
+		).toThrow(/name.*plain object/s);
+	});
+
+	it('rejects a Date, which no type constraint can exclude', () => {
+		expect(() =>
+			mergeRecord(
+				{value: new Date(0), timestamps: {}},
+				{value: new Date(1), timestamps: {}},
+				'created',
+			),
+		).toThrow(/created.*plain object/s);
+	});
+
+	it('rejects a class instance', () => {
+		class Settings {
+			theme = 'dark';
+		}
+		expect(() =>
+			mergeRecord(
+				{value: new Settings(), timestamps: {}},
+				{value: new Settings(), timestamps: {}},
+				'settings',
+			),
+		).toThrow(/settings.*plain object/s);
+	});
+
+	it('accepts a missing value, which is just an unset field', () => {
+		expect(() =>
+			mergeRecord(
+				{value: undefined as unknown as object, timestamps: {}},
+				{value: {theme: 'dark'}, timestamps: {theme: 1}},
+				'settings',
+			),
+		).not.toThrow();
+	});
+
+	it('accepts an object with a null prototype', () => {
+		const bare = Object.create(null) as {theme?: string};
+		bare.theme = 'dark';
+		expect(() =>
+			mergeRecord(
+				{value: bare, timestamps: {theme: 1}},
+				{value: {theme: 'light'}, timestamps: {theme: 2}},
+				'settings',
+			),
+		).not.toThrow();
 	});
 });

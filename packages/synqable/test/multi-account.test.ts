@@ -3,7 +3,7 @@ import {
 	createMultiAccountStore,
 	createSyncableStore,
 	defineSchema,
-	permanent,
+	value,
 	map,
 	type AsyncStorage,
 	type InternalStorage,
@@ -15,7 +15,7 @@ import {
 
 // Test schema
 const schema = defineSchema({
-	settings: permanent<{theme: string}>(),
+	settings: value<{theme: string}>(),
 	operations: map<{tx: string; status: string}>(),
 });
 

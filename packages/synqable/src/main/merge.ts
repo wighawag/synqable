@@ -5,14 +5,7 @@
  */
 
 import hash from 'object-hash';
-import type {
-	Schema,
-	InternalStorage,
-	StoreChange,
-	DataOf,
-	PermanentKeys,
-	MapKeys,
-} from './types.js';
+import type {Schema, InternalStorage, StoreChange, DataOf, ValueKeys, MapKeys} from './types.js';
 import {cleanup, type CleanupResult} from './cleanup.js';
 
 // ============================================================================
@@ -50,24 +43,24 @@ export function tiebreaker<T>(a: T, b: T): TiebreakerResult<T> {
 }
 
 // ============================================================================
-// Permanent Field Merge
+// Value Field Merge
 // ============================================================================
 
-export interface PermanentMergeInput<T> {
+export interface ValueMergeInput<T> {
 	value: T;
 	timestamp: number;
 }
 
-export interface PermanentMergeResult<T> {
+export interface ValueMergeResult<T> {
 	value: T;
 	timestamp: number;
 	outcome: MergeOutcome;
 }
 
-export function mergePermanent<T>(
-	current: PermanentMergeInput<T>,
-	incoming: PermanentMergeInput<T>,
-): PermanentMergeResult<T> {
+export function mergeValue<T>(
+	current: ValueMergeInput<T>,
+	incoming: ValueMergeInput<T>,
+): ValueMergeResult<T> {
 	if (incoming.timestamp > current.timestamp) {
 		return {
 			value: incoming.value,
@@ -101,6 +94,146 @@ export function mergePermanent<T>(
 		timestamp: current.timestamp,
 		outcome,
 	};
+}
+
+// ============================================================================
+// Record Field Merge
+// ============================================================================
+
+export interface RecordState<T> {
+	value: T;
+	timestamps: Record<string, number>;
+	/**
+	 * Field-level timestamp, used as the floor for any property that has no
+	 * timestamp of its own. This is what lets a field converted from `value()`
+	 * to `record()` merge correctly against data written before the conversion.
+	 */
+	fallbackTimestamp?: number;
+}
+
+export interface RecordMergeResult<T> {
+	value: T;
+	timestamps: Record<string, number>;
+	/** Properties where the incoming side won, in iteration order. */
+	changedProperties: string[];
+	localWonCount: number;
+	tieCount: number;
+}
+
+/**
+ * A record merges property by property, so its value must be a plain object.
+ *
+ * Arrays and primitives are rejected by the type layer at `record<T>()`, but
+ * exotic objects (Date, Map, Set, class instances) satisfy `T extends object`,
+ * and JS consumers have no type layer at all. Merging any of those produced a
+ * corrupted plain object with the declared type still claiming otherwise, so
+ * they fail loudly here instead.
+ */
+function assertPlainObject(candidate: unknown, fieldName: string): void {
+	if (candidate === null || candidate === undefined) {
+		return; // An unset field is legitimate: it merges as empty.
+	}
+
+	if (Array.isArray(candidate)) {
+		throw new Error(
+			`Record field "${fieldName}" received an array. Arrays have no independently ` +
+				`mergeable properties - their indices are jointly constrained by order and ` +
+				`length - so they must merge as a whole. Use value<T>() instead.`,
+		);
+	}
+
+	const isPlain =
+		typeof candidate === 'object' &&
+		(Object.getPrototypeOf(candidate) === Object.prototype ||
+			Object.getPrototypeOf(candidate) === null);
+
+	if (!isPlain) {
+		throw new Error(
+			`Record field "${fieldName}" must be a plain object, received ` +
+				`${typeof candidate === 'object' ? (candidate.constructor?.name ?? 'an exotic object') : typeof candidate}. ` +
+				`Only plain objects have independently mergeable properties. Use value<T>() instead.`,
+		);
+	}
+}
+
+/**
+ * Merge a record field property by property, higher timestamp wins.
+ *
+ * Property presence is tested with `in`, never truthiness, so `false`, `0`
+ * and `''` are ordinary values that obey their timestamps.
+ */
+export function mergeRecord<T extends object>(
+	current: RecordState<T>,
+	incoming: RecordState<T>,
+	fieldName: string,
+): RecordMergeResult<T> {
+	assertPlainObject(current.value, fieldName);
+	assertPlainObject(incoming.value, fieldName);
+
+	const merged: Record<string, unknown> = {};
+	const timestamps: Record<string, number> = {};
+	const changedProperties: string[] = [];
+	let localWonCount = 0;
+	let tieCount = 0;
+
+	const currentValue = (current.value ?? {}) as Record<string, unknown>;
+	const incomingValue = (incoming.value ?? {}) as Record<string, unknown>;
+
+	const allKeys = new Set([...Object.keys(currentValue), ...Object.keys(incomingValue)]);
+
+	for (const key of allKeys) {
+		const inCurrent = key in currentValue;
+		const inIncoming = key in incomingValue;
+		const cTs = current.timestamps[key] ?? current.fallbackTimestamp ?? 0;
+		const iTs = incoming.timestamps[key] ?? incoming.fallbackTimestamp ?? 0;
+
+		if (inCurrent && !inIncoming) {
+			merged[key] = currentValue[key];
+			timestamps[key] = cTs;
+			localWonCount++;
+			continue;
+		}
+
+		if (!inCurrent && inIncoming) {
+			merged[key] = incomingValue[key];
+			timestamps[key] = iTs;
+			changedProperties.push(key);
+			continue;
+		}
+
+		if (iTs > cTs) {
+			merged[key] = incomingValue[key];
+			timestamps[key] = iTs;
+			changedProperties.push(key);
+			continue;
+		}
+
+		if (cTs > iTs) {
+			merged[key] = currentValue[key];
+			timestamps[key] = cTs;
+			localWonCount++;
+			continue;
+		}
+
+		// Same timestamp - deterministic tiebreaker on the property value.
+		const picked = tiebreaker(currentValue[key], incomingValue[key]);
+		merged[key] = picked.value;
+		timestamps[key] = cTs;
+
+		switch (picked.outcome) {
+			case 'tie':
+				tieCount++;
+				break;
+			case 'first':
+				localWonCount++;
+				break;
+			case 'second':
+				changedProperties.push(key);
+				break;
+		}
+	}
+
+	return {value: merged as T, timestamps, changedProperties, localWonCount, tieCount};
 }
 
 // ============================================================================
@@ -258,13 +391,13 @@ export function mergeStore<S extends Schema>(
 	for (const field of Object.keys(schema) as (keyof S & string)[]) {
 		const fieldDef = schema[field];
 
-		if (fieldDef.__type === 'permanent') {
+		if (fieldDef.__type === 'value') {
 			const currentTs = (current.$timestamps as Record<string, number>)[field] ?? 0;
 			const incomingTs = (incoming.$timestamps as Record<string, number>)[field] ?? 0;
 			const currentValue = (current.data as Record<string, unknown>)[field];
 			const incomingValue = (incoming.data as Record<string, unknown>)[field];
 
-			const mergeResult = mergePermanent(
+			const mergeResult = mergeValue(
 				{value: currentValue, timestamp: currentTs},
 				{value: incomingValue, timestamp: incomingTs},
 			);
@@ -283,6 +416,39 @@ export function mergeStore<S extends Schema>(
 					break;
 				case 'tie':
 					break;
+			}
+		} else if (fieldDef.__type === 'record') {
+			const currentValue = ((current.data as Record<string, unknown>)[field] ?? {}) as object;
+			const incomingValue = ((incoming.data as Record<string, unknown>)[field] ?? {}) as object;
+			const currentTimestamps =
+				(current.$itemTimestamps as Record<string, Record<string, number>>)[field] ?? {};
+			const incomingTimestamps =
+				(incoming.$itemTimestamps as Record<string, Record<string, number>>)[field] ?? {};
+			// A field converted from value() has only a field-level timestamp.
+			const currentFallback = (current.$timestamps as Record<string, number>)[field];
+			const incomingFallback = (incoming.$timestamps as Record<string, number>)[field];
+
+			const recordResult = mergeRecord(
+				{value: currentValue, timestamps: currentTimestamps, fallbackTimestamp: currentFallback},
+				{value: incomingValue, timestamps: incomingTimestamps, fallbackTimestamp: incomingFallback},
+				field,
+			);
+
+			(result.data as Record<string, unknown>)[field] = recordResult.value;
+			(result.$itemTimestamps as Record<string, Record<string, number>>)[field] =
+				recordResult.timestamps;
+
+			if (recordResult.changedProperties.length > 0) {
+				changes.push({event: `${field}:changed`, data: recordResult.value});
+			}
+
+			if (recordResult.localWonCount > 0) {
+				// Only genuine local edits count. A property still at timestamp 0 is
+				// default data and must not mark the store dirty.
+				const hasStampedProperty = Object.values(recordResult.timestamps).some((ts) => ts > 0);
+				if (hasStampedProperty) {
+					hasLocalChanges = true;
+				}
 			}
 		} else if (fieldDef.__type === 'map') {
 			const currentItems = ((current.data as Record<string, unknown>)[field] ?? {}) as Record<

@@ -6,6 +6,7 @@ A TypeScript library for building **syncable local-first stores** with multi-acc
 
 - 🔄 **Local-first**: Data is stored locally and syncs to server when available
 - 🔀 **CRDT Merge**: Last-Writer-Wins (LWW) conflict resolution with deterministic tiebreaker
+- 🎚️ **Merge granularity you choose**: per value, per property, or per collection item
 - 👥 **Multi-account**: Seamless account switching with lazy lifecycle management
 - 📦 **Type-safe Schema**: Define your data shape with full TypeScript inference
 - ⚡ **Svelte Compatible**: Follows the Svelte store contract out of the box
@@ -25,11 +26,14 @@ pnpm add synqable
 ### 1. Define Your Schema
 
 ```typescript
-import { defineSchema, permanent, map } from 'synqable';
+import { defineSchema, value, record, map } from 'synqable';
 
 const schema = defineSchema({
-  // Permanent fields: single values, updated as whole, never deleted
-  settings: permanent<{
+  // Value fields: merged as a single unit, never deleted
+  activeWorkspaceId: value<string>(),
+
+  // Record fields: fixed set of properties, each merged independently
+  settings: record<{
     theme: 'light' | 'dark';
     notifications: boolean;
   }>(),
@@ -41,6 +45,9 @@ const schema = defineSchema({
   }>(),
 });
 ```
+
+The choice between them is about **merge granularity**, which decides whether a
+concurrent edit survives. See [Schema Design](#schema-design) before picking one.
 
 ### 2. Create a Store
 
@@ -55,6 +62,7 @@ const store = createSyncableStore({
     key: 'my-app-data',
   },
   defaultData: () => ({
+    activeWorkspaceId: 'default',
     settings: { theme: 'light', notifications: true },
     tasks: {},
   }),
@@ -74,10 +82,14 @@ if (state.status === 'ready') {
   console.log('Tasks:', state.data.tasks);
 }
 
-// Set a permanent field (full replacement)
+// Set a value field
+store.set('activeWorkspaceId', 'workspace-2');
+
+// Set a record field (full replacement - stamps every property)
 store.set('settings', { theme: 'dark', notifications: false });
 
-// Update a permanent field with partial updates (deep merge)
+// Update a record field with partial updates (stamps only `theme`, so a
+// concurrent edit to `notifications` on another device still survives)
 store.update('settings', { theme: 'light' });
 
 // Add a map item (with required deleteAt timestamp)
@@ -187,7 +199,7 @@ const multiStore = createMultiAccountStore({
 Watch fields and items directly on the multi-account store - they automatically update when the account changes:
 
 ```typescript
-// Watch a permanent field across account switches
+// Watch a record field across account switches
 const settings$ = multiStore.watchField('settings');
 settings$.subscribe((settings) => {
   console.log('Settings:', settings); // undefined when no account connected
@@ -379,7 +391,7 @@ const combined = combineStatus(syncStatus, storageStatus);
 Create reactive stores for individual fields or items:
 
 ```typescript
-// Watch a permanent field
+// Watch a record field
 const settings$ = store.watchField('settings');
 settings$.subscribe((settings) => {
   console.log('Settings changed:', settings);
@@ -443,8 +455,9 @@ store.on('$store:storage', (event) => {
 |--------|-------------|
 | `load()` | Initialize the store by loading from storage |
 | `get()` | Get current async state synchronously |
-| `set(field, value)` | Set a permanent field value (full replacement) |
-| `update(field, partial)` | Update a permanent field with partial updates (deep merge) |
+| `set(field, value)` | Replace a value or record field (on a record, stamps every property) |
+| `update(field, partial)` | Update a **record** field with partial updates (stamps only the supplied properties) |
+| `patch(field, fn)` | Patch a value or record field with a function (on a record, stamps only what changed) |
 | `addItem(field, key, value, options)` | Add an item to a map field (requires `deleteAt`) |
 | `setItem(field, key, value)` | Set a map item (full replacement, preserves `deleteAt`) |
 | `updateItem(field, key, partial)` | Update a map item with partial updates (deep merge) |
@@ -510,16 +523,93 @@ type SettingsValue = ReadableValue<typeof settingsStore>;
 
 ## Schema Design
 
-### Permanent Fields
+The three field types differ in **merge granularity**: the unit at which a
+conflict is resolved, and therefore the unit at which a concurrent edit can be
+lost. Pick the type by asking what two devices might edit at the same time.
 
-Use for configuration, settings, or singleton data that's updated as a whole:
+| Field type | Merge granularity | Key set | Deletion |
+|------------|-------------------|---------|----------|
+| `value<T>()` | the whole value | single value | never deleted |
+| `record<T>()` | per property | fixed, heterogeneous | never deleted |
+| `map<T>()` | per key | open, homogeneous | `deleteAt` + TTL |
+
+### Value Fields
+
+Use for data that is genuinely atomic, where replacing it wholesale is the
+intent:
 
 ```typescript
-settings: permanent<{
+activeWorkspaceId: value<string>()
+```
+
+A value field is resolved as one unit. If two devices write it concurrently, the
+later write wins **entirely**. That is the correct behaviour for an atomic value
+and the wrong behaviour for a struct whose properties are edited independently -
+use `record` for that.
+
+Value fields also hold anything a record cannot: arrays, primitives, `Date`s,
+class instances, and **structs whose properties carry a joint invariant**:
+
+```typescript
+dateRange: value<{start: number; end: number}>()   // start <= end
+```
+
+Merging `start` and `end` independently could converge on `start > end`, a range
+that existed on no device. When properties must move together, they must merge
+together.
+
+`update()` is deliberately **not available** on value fields: a partial update
+cannot merge independently there, so offering it would claim a granularity the
+merge does not provide. Use `set()` or `patch()`.
+
+### Record Fields
+
+Use for a fixed set of named properties that may be edited independently, which
+is what most settings and preferences objects are:
+
+```typescript
+settings: record<{
   theme: 'light' | 'dark';
   language: string;
 }>()
 ```
+
+Each property carries its own timestamp, so device A changing `theme` and
+device B changing `language` converge with **both** edits intact. Modelling the
+same struct as a `value` field would discard one of them.
+
+- `set(field, whole)` asserts every property, so every property is stamped.
+- `update(field, partial)` stamps only the properties you supply.
+- `patch(field, fn)` stamps only the properties whose value actually changed.
+
+Record granularity is **one level deep** by design. In
+`record<{layout: {columns: number}}>()`, `layout` is stamped as a unit;
+per-path timestamps at arbitrary depth is a different data structure and
+deliberately out of scope.
+
+Record fields have a fixed key set and no tombstones. If entries come and go,
+use a map field.
+
+`record<T>()` rejects arrays and primitives at the schema, and `mergeRecord`
+rejects exotic objects (`Date`, `Map`, class instances) at runtime, because none
+of them have independently mergeable properties. All of them belong in a `value`
+field.
+
+### `value` or `record`? They accept the same `T`
+
+Both can hold `{theme, fontSize}`, and the type does not tell them apart. The
+question is not what the data looks like, it is whether the properties can be
+**observed independently**, which only you know:
+
+| Modelling mistake | Result | How you find out |
+|---|---|---|
+| mergeable struct as `value` | an edit is lost | visible: a setting reverts, and the surviving state did exist on some device |
+| atomic struct as `record` | torn write | silent: converges to a combination that existed nowhere, possibly breaking an invariant |
+
+The second failure is worse, so **prefer `value` when unsure** and move to
+`record` once you know the properties are genuinely independent. Converting that
+direction needs no migration (see below); the reverse loses per-property
+history.
 
 ### Map Fields
 
@@ -534,19 +624,44 @@ tasks: map<{
 
 Map items automatically include a `deleteAt` timestamp for TTL-based cleanup.
 
+### Choosing
+
+- Properties edited independently on different devices? **`record`**
+- Entries that come and go, or need a TTL? **`map`**
+- A single indivisible value replaced wholesale? **`value`**
+
+A homogeneous, open-ended collection (`Record<string, Task>`) belongs in a `map`,
+not a `value` or `record`: those merge a fixed key set and cannot express
+deletion.
+
 ## How Merge Works
 
 When syncing with the server, synqable uses a **Last-Writer-Wins (LWW)** strategy:
 
-1. **Timestamps**: Each field/item has a timestamp tracking when it was last modified
-2. **Higher wins**: The version with the higher timestamp wins
-3. **Deterministic tiebreaker**: If timestamps match, JSON-stable-stringify comparison breaks the tie
-4. **Tombstones**: Deleted map items are tracked as tombstones until their TTL expires
+1. **Timestamps**: every merge unit carries its own timestamp - one per value
+   field, one per record property, one per map item
+2. **Higher wins**: the version with the higher timestamp wins
+3. **Deterministic tiebreaker**: if timestamps match, a deterministic hash
+   comparison breaks the tie the same way on every device
+4. **Tombstones**: deleted map items are tracked as tombstones until their TTL expires
 
 This ensures:
 - Deterministic merge results across all clients
-- No data loss during concurrent edits
-- Eventual consistency
+- Eventual consistency: every device converges on the same state
+- No **divergence** between devices
+
+It does **not** mean every edit survives. LWW resolves a conflict by discarding
+the loser, and the merge unit is what decides whether two edits even conflict.
+Two devices editing different properties of a `record` do not conflict and both
+edits survive; the same two edits against a `value` field are one conflict, and
+one of them is discarded. Choosing the right field type is how you control that.
+
+### Converting a field from `value` to `record`
+
+Data written while a field was a `value` has a single field-level timestamp and
+no per-property timestamps. `mergeRecord` uses the field-level timestamp as the
+**floor** for any property that lacks its own, so previously written data merges
+correctly without a migration or a `$version` bump.
 
 ## License
 

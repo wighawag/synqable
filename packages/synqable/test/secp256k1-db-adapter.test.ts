@@ -4,11 +4,11 @@ import {Secp256k1DBClient} from '../src/sync/adapters/secp256k1-db/client.js';
 import type {Secp256k1Signer} from '../src/sync/adapters/secp256k1-db/types.js';
 import {fromEthersSigner, fromViemWalletClient} from '../src/sync/adapters/secp256k1-db/signer.js';
 import {createSecp256k1DBSyncAdapterFactory} from '../src/sync/adapters/secp256k1-db/index.js';
-import {permanent, map} from '../src/main/types.js';
+import {value, map} from '../src/main/types.js';
 
 // Test schema
 const TestSchema = {
-	settings: permanent<{theme: string}>(),
+	settings: value<{theme: string}>(),
 	items: map<{name: string}>(),
 };
 

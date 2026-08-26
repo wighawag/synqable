@@ -2505,6 +2505,12 @@ Using `load()` instead of reactive `start()`:
 - **Permanent fields**: Simple values, last-write-wins based on timestamp
 - **Map fields**: Collections with per-item tracking and automatic TTL cleanup
 
+> **Superseded** by `field-types-and-merge-granularity.md`. There are now three
+> field types, named after their merge granularity: `value`, `record`, `map`.
+> `permanent` was renamed to `value`. This entry is kept as a record of the
+> original design; note that it stated the limit without giving a reason, which
+> is what prompted the revisit.
+
 ### 4. Timestamp-Based Conflict Resolution
 - Higher timestamp always wins
 - On equal timestamps, deterministic tiebreaker (lexicographic comparison of JSON)

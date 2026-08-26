@@ -1,9 +1,9 @@
 import {describe, it, expect} from 'vitest';
-import {cleanup, defineSchema, permanent, map} from '../src/index.js';
+import {cleanup, defineSchema, value, map} from '../src/index.js';
 
 describe('cleanup', () => {
 	const testSchema = defineSchema({
-		settings: permanent<{theme: string}>(),
+		settings: value<{theme: string}>(),
 		operations: map<{tx: string; status: string}>(),
 	});
 
@@ -93,7 +93,7 @@ describe('cleanup', () => {
 		expect(result.tombstonesDeleted).toBe(false);
 	});
 
-	it('does not modify permanent fields', () => {
+	it('does not modify value fields', () => {
 		const now = 99999;
 		const storage = {
 			$version: 1,
@@ -108,7 +108,7 @@ describe('cleanup', () => {
 
 		const result = cleanup(storage, testSchema, now);
 
-		// Permanent fields are never cleaned up regardless of timestamp
+		// Value fields are never cleaned up regardless of timestamp
 		expect(result.storage.data.settings).toStrictEqual({theme: 'dark'});
 		expect(result.storage.$timestamps.settings).toBe(1000);
 	});

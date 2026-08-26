@@ -1,9 +1,25 @@
 /**
  * Syncable Store - Core Type Definitions
  *
- * Two field types only:
- * - Permanent: Single value, updated as whole, never deleted
- * - Map: Key-value collection with per-item timestamps and deleteAt
+ * Three field types, distinguished by MERGE GRANULARITY - the property that
+ * decides whether a concurrent edit survives:
+ *
+ * | type       | merge granularity | key set                  | deletion        |
+ * |------------|-------------------|--------------------------|-----------------|
+ * | value<T>   | the whole value   | single value             | never deleted   |
+ * | record<T>  | per property      | fixed, heterogeneous     | never deleted   |
+ * | map<T>     | per key           | open, homogeneous        | deleteAt + TTL  |
+ *
+ * Choosing between them:
+ * - Properties edited independently on different devices -> record.
+ *   `value` resolves as one unit, so the losing device's edit to an untouched
+ *   property is discarded.
+ * - Entries that come and go -> map. Records have a fixed key set and no tombstones.
+ * - Genuinely atomic data, replaced wholesale -> value.
+ *
+ * Record granularity is one level deep, by design. `record<{a: {b: 1}}>` stamps
+ * `a` as a unit; per-path timestamps at arbitrary depth is a different data
+ * structure (a full CRDT) and deliberately out of scope.
  */
 
 import {StorageConfig} from '../storage/types.js';
@@ -14,9 +30,14 @@ import {StoreEventsWithSync, SyncConfig, SyncStatus} from '../sync/types.js';
 // ============================================================================
 
 /**
- * Marker type for permanent fields - updated as a whole unit.
+ * Marker type for value fields - updated as a whole unit.
  */
-export type PermanentField<T> = {__type: 'permanent'; __value?: T};
+export type ValueField<T> = {__type: 'value'; __value?: T};
+
+/**
+ * Marker type for record fields - properties merged individually.
+ */
+export type RecordField<T> = {__type: 'record'; __value?: T};
 
 /**
  * Marker type for map fields - items merged individually.
@@ -28,11 +49,51 @@ export type MapField<T> = {__type: 'map'; __item?: T};
 // ============================================================================
 
 /**
- * Define a permanent field in the schema.
- * Permanent fields are updated as a whole and never deleted.
+ * Define a value field in the schema.
+ * Value fields are updated as a whole and never deleted.
  */
-export function permanent<T>(): PermanentField<T> {
-	return {__type: 'permanent'} as PermanentField<T>;
+export function value<T>(): ValueField<T> {
+	return {__type: 'value'} as ValueField<T>;
+}
+
+/**
+ * Schema-time guard for `record<T>()`.
+ *
+ * An array can never be a record: its indices are jointly constrained by order
+ * and length, so there are no independently mergeable properties. Returning a
+ * branded error type instead of `RecordField<T>` makes that fail at the schema
+ * field rather than as a corrupted merge at sync time.
+ *
+ * Primitives get the same treatment, since a primitive has no properties to
+ * merge. Exotic objects (Date, Map, class instances) satisfy `object` and
+ * cannot be excluded structurally, so `mergeRecord` rejects those at runtime.
+ */
+type RecordFieldFor<T> = T extends readonly unknown[]
+	? {
+			__synqableSchemaError: 'record<T> cannot be an array. Arrays merge as a whole because their indices are jointly constrained by order and length. Use value<T>() instead.';
+		}
+	: T extends object
+		? RecordField<T>
+		: {
+				__synqableSchemaError: 'record<T> must be an object with independently mergeable properties. A primitive has none. Use value<T>() instead.';
+			};
+
+/**
+ * Define a record field in the schema.
+ *
+ * Record fields hold a fixed set of named properties, each merged
+ * independently by timestamp. Use this when two devices may edit different
+ * properties of the same struct and both edits must survive.
+ *
+ * Only for structs whose properties can be observed independently. If the
+ * properties carry a joint invariant (a `{start, end}` range, a `{x, y}`
+ * point), use `value<T>()`: merging them independently can converge on a
+ * combination that never existed on any device.
+ *
+ * Properties are never deleted - use a map field for entries that come and go.
+ */
+export function record<T>(): RecordFieldFor<T> {
+	return {__type: 'record'} as RecordFieldFor<T>;
 }
 
 /**
@@ -46,7 +107,7 @@ export function map<T>(): MapField<T> {
 /**
  * Schema type - maps field names to field types.
  */
-export type Schema = Record<string, PermanentField<unknown> | MapField<unknown>>;
+export type Schema = Record<string, ValueField<unknown> | RecordField<unknown> | MapField<unknown>>;
 
 /**
  * Define a schema with type inference.
@@ -60,10 +121,17 @@ export function defineSchema<S extends Schema>(schema: S): S {
 // ============================================================================
 
 /**
- * Extract permanent field keys from a schema.
+ * Extract value field keys from a schema.
  */
-export type PermanentKeys<S extends Schema> = {
-	[K in keyof S]: S[K] extends PermanentField<unknown> ? K : never;
+export type ValueKeys<S extends Schema> = {
+	[K in keyof S]: S[K] extends ValueField<unknown> ? K : never;
+}[keyof S];
+
+/**
+ * Extract record field keys from a schema.
+ */
+export type RecordKeys<S extends Schema> = {
+	[K in keyof S]: S[K] extends RecordField<unknown> ? K : never;
 }[keyof S];
 
 /**
@@ -74,9 +142,20 @@ export type MapKeys<S extends Schema> = {
 }[keyof S];
 
 /**
- * Extract the inner type from a PermanentField.
+ * Keys of fields held as a single addressable value (value and record fields).
+ * These are the fields `set` and `patch` operate on.
  */
-export type ExtractPermanent<F> = F extends PermanentField<infer T> ? T : never;
+export type WholeFieldKeys<S extends Schema> = ValueKeys<S> | RecordKeys<S>;
+
+/**
+ * Extract the inner type from a ValueField.
+ */
+export type ExtractValue<F> = F extends ValueField<infer T> ? T : never;
+
+/**
+ * Extract the inner type from a RecordField.
+ */
+export type ExtractRecord<F> = F extends RecordField<infer T> ? T : never;
 
 /**
  * Extract the item type from a MapField.
@@ -88,11 +167,13 @@ export type ExtractMapItem<F> = F extends MapField<infer T> ? T : never;
  * Map items include deleteAt in the data.
  */
 export type DataOf<S extends Schema> = {
-	[K in keyof S]: S[K] extends PermanentField<infer T>
+	[K in keyof S]: S[K] extends ValueField<infer T>
 		? T
-		: S[K] extends MapField<infer T>
-			? Record<string, T & {deleteAt: number}>
-			: never;
+		: S[K] extends RecordField<infer T>
+			? T
+			: S[K] extends MapField<infer T>
+				? Record<string, T & {deleteAt: number}>
+				: never;
 };
 
 /**
@@ -127,14 +208,17 @@ export type InternalStorage<S extends Schema> = {
 	/** User's clean data */
 	data: DataOf<S>;
 
-	/** Timestamps for permanent fields */
+	/** Timestamps for value fields */
 	$timestamps: {
-		[K in PermanentKeys<S>]?: number;
+		[K in ValueKeys<S>]?: number;
 	};
 
-	/** Per-item timestamps for map fields */
+	/**
+	 * Per-key timestamps for record fields (keyed by property name) and map
+	 * fields (keyed by item id).
+	 */
 	$itemTimestamps: {
-		[K in MapKeys<S>]?: Record<string, number>;
+		[K in RecordKeys<S> | MapKeys<S>]?: Record<string, number>;
 	};
 
 	/** Tombstones for deleted map items (stores deleteAt time) */
@@ -195,10 +279,10 @@ type BaseStoreEvents<S extends Schema> = {
 };
 
 /**
- * Helper type - events for permanent fields.
+ * Helper type - events for value fields.
  */
-type PermanentEvents<S extends Schema> = {
-	[K in PermanentKeys<S> as `${K & string}:changed`]: ExtractPermanent<S[K]>;
+type ValueEvents<S extends Schema> = {
+	[K in ValueKeys<S> as `${K & string}:changed`]: ExtractValue<S[K]>;
 };
 
 /**
@@ -222,10 +306,22 @@ type MapEvents<S extends Schema> = {
 };
 
 /**
+ * Helper type - events for record fields.
+ *
+ * Record fields emit one field-level event carrying the whole merged value,
+ * matching value fields. Per-property event names (`settings.theme:changed`)
+ * are deliberately not used: map fields already established that per-key
+ * granularity travels in the payload, not the event name.
+ */
+type RecordEvents<S extends Schema> = {
+	[K in RecordKeys<S> as `${K & string}:changed`]: ExtractRecord<S[K]>;
+};
+
+/**
  * Schema-derived events.
  */
 type SchemaEvents<S extends Schema> = Omit<
-	PermanentEvents<S> & MapEvents<S>,
+	ValueEvents<S> & RecordEvents<S> & MapEvents<S>,
 	keyof BaseStoreEvents<S>
 >;
 
@@ -312,7 +408,7 @@ export interface Readable<T> {
 
 /**
  * Type of the Readable returned by watchField for a given field.
- * - For permanent fields: T | undefined (can be undefined before first set or when store not ready)
+ * - For value and record fields: T | undefined (undefined before first set or when store not ready)
  * - For map fields: Always a Record (empty {} when store not ready, never undefined)
  *
  * @example
@@ -442,17 +538,27 @@ export interface SyncableStore<S extends Schema> {
 	/** The account this store is bound to */
 	readonly account: `0x${string}`;
 
-	/** Set a permanent field value */
-	set<K extends PermanentKeys<S>>(
-		field: K,
-		value: ExtractPermanent<S[K]>,
-		options?: MutationOptions,
-	): void;
+	/**
+	 * Replace a value or record field wholesale.
+	 * On a record field this asserts every property, so every property is
+	 * stamped with the current time.
+	 */
+	set<K extends WholeFieldKeys<S>>(field: K, value: DataOf<S>[K], options?: MutationOptions): void;
 
-	/** Update a permanent field with partial updates (deep merge) */
-	update<K extends PermanentKeys<S>>(
+	/**
+	 * Update a record field with partial updates (deep merge).
+	 *
+	 * Only the top-level properties present in `value` are stamped, so a
+	 * concurrent edit to any other property survives the merge.
+	 *
+	 * Deliberately unavailable on value fields: a value field resolves as a
+	 * single unit, so a partial update there cannot merge independently and the
+	 * API would be claiming a granularity the merge does not provide. Use
+	 * `set` or `patch` for value fields, or make the field a `record`.
+	 */
+	update<K extends RecordKeys<S>>(
 		field: K,
-		value: DeepPartial<ExtractPermanent<S[K]>>,
+		value: DeepPartial<ExtractRecord<S[K]>>,
 		options?: MutationOptions,
 	): void;
 
@@ -480,10 +586,16 @@ export interface SyncableStore<S extends Schema> {
 		options?: MutationOptions,
 	): void;
 
-	/** Patch a permanent field using an update function. Always creates a new reference. */
-	patch<K extends PermanentKeys<S>>(
+	/**
+	 * Patch a value or record field using an update function.
+	 * Always creates a new reference.
+	 *
+	 * On a record field only the top-level properties whose value actually
+	 * changed are stamped.
+	 */
+	patch<K extends WholeFieldKeys<S>>(
 		field: K,
-		updateFn: (current: ExtractPermanent<S[K]>) => ExtractPermanent<S[K]>,
+		updateFn: (current: DataOf<S>[K]) => DataOf<S>[K],
 		options?: MutationOptions,
 	): void;
 

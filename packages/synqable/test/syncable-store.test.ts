@@ -2,7 +2,7 @@ import {describe, it, expect, vi, beforeEach} from 'vitest';
 import {
 	createSyncableStore,
 	defineSchema,
-	permanent,
+	value,
 	map,
 	type AsyncStorage,
 	type InternalStorage,
@@ -18,7 +18,7 @@ import {
 
 // Test schema with volume for more complex testing
 const schema = defineSchema({
-	settings: permanent<{theme: string; volume: number}>(),
+	settings: value<{theme: string; volume: number}>(),
 	operations: map<{tx: string; status: string}>(),
 });
 
@@ -124,7 +124,7 @@ describe('createSyncableStore', () => {
 		expect(store.account).toBe('0x1234567890123456789012345678901234567890');
 	});
 
-	it('sets permanent field value', async () => {
+	it('sets value field value', async () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
@@ -328,7 +328,7 @@ describe('createSyncableStore', () => {
 	});
 
 	describe('type-safe events', () => {
-		it('emits settings:changed event when permanent field is set', async () => {
+		it('emits settings:changed event when value field is set', async () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
@@ -459,7 +459,7 @@ describe('createSyncableStore', () => {
 				receivedValue = value;
 			});
 
-			store.update('settings', {volume: 0.9});
+			store.patch('settings', (s) => ({...s, volume: 0.9}));
 
 			expect(receivedValue?.volume).toBe(0.9);
 			expect(receivedValue?.theme).toBe('dark'); // original value preserved
@@ -1747,7 +1747,7 @@ describe('createSyncableStore', () => {
 	});
 
 	describe('watchField', () => {
-		it('returns undefined when store is not ready (permanent field)', () => {
+		it('returns undefined when store is not ready (value field)', () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
@@ -1764,7 +1764,7 @@ describe('createSyncableStore', () => {
 			expect(fieldValue).toBeUndefined();
 		});
 
-		it('returns current value for permanent field', async () => {
+		it('returns current value for value field', async () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
@@ -1784,7 +1784,7 @@ describe('createSyncableStore', () => {
 			expect(fieldValue?.volume).toBe(0.5);
 		});
 
-		it('triggers on set() for permanent field', async () => {
+		it('triggers on set() for value field', async () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
@@ -1806,7 +1806,7 @@ describe('createSyncableStore', () => {
 			expect(fieldValue?.volume).toBe(0.9);
 		});
 
-		it('triggers on patch() for permanent field', async () => {
+		it('triggers on patch() for value field', async () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
@@ -1822,7 +1822,7 @@ describe('createSyncableStore', () => {
 			fieldStore.subscribe((v) => (fieldValue = v));
 
 			// Patch the field
-			store.update('settings', {volume: 0.9});
+			store.patch('settings', (s) => ({...s, volume: 0.9}));
 
 			expect(fieldValue?.theme).toBe('dark'); // unchanged
 			expect(fieldValue?.volume).toBe(0.9); // patched
@@ -2134,7 +2134,7 @@ describe('createSyncableStore', () => {
 			expect(states.some((s) => s.status === 'ready' && s.isLoading === false)).toBe(true);
 		});
 
-		it('does NOT trigger on permanent field set()', async () => {
+		it('does NOT trigger on value field set()', async () => {
 			const store = createSyncableStore({
 				schema,
 				account: '0x1234567890123456789012345678901234567890',
@@ -2154,7 +2154,7 @@ describe('createSyncableStore', () => {
 			// Reset count after initial subscription
 			subscriptionCallCount = 0;
 
-			// Make a change to permanent field
+			// Make a change to value field
 			store.set('settings', {theme: 'light', volume: 0.8});
 
 			// Should NOT have triggered another subscription call
@@ -3122,7 +3122,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 			saveCallCount = 0;
 
-			store.update('settings', {volume: 0.9}, {immediate: true});
+			store.patch('settings', (s) => ({...s, volume: 0.9}), {immediate: true});
 			await store.flush();
 			expect(saveCallCount).toBe(1);
 

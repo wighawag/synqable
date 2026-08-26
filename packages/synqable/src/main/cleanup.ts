@@ -43,6 +43,16 @@ export function cleanup<S extends Schema>(
 	for (const field of Object.keys(schema) as (keyof S & string)[]) {
 		const fieldDef = schema[field];
 
+		if (fieldDef.__type === 'record') {
+			// Record fields have no TTL and no tombstones, but they DO keep per-property
+			// timestamps in $itemTimestamps, which must survive cleanup. $itemTimestamps
+			// is rebuilt from scratch below, so carrying them over here is load-bearing:
+			// cleanup runs on every load and every merge.
+			(result.$itemTimestamps as Record<string, Record<string, number>>)[field] =
+				(storage.$itemTimestamps as Record<string, Record<string, number>>)[field] ?? {};
+			continue;
+		}
+
 		if (fieldDef.__type === 'map') {
 			// Copy and filter tombstones
 			const tombstones =
@@ -87,7 +97,7 @@ export function cleanup<S extends Schema>(
 			(result.data as Record<string, unknown>)[field] = cleanedItems;
 			(result.$itemTimestamps as Record<string, Record<string, number>>)[field] = cleanedTimestamps;
 		}
-		// Permanent fields are never cleaned up
+		// Value fields are never cleaned up and carry no per-key timestamps
 	}
 
 	return {storage: result, changes, tombstonesDeleted};

@@ -5,9 +5,12 @@ import type {
 	AsyncState,
 	StorageStatus,
 	StoreLifecycleState,
-	PermanentKeys,
+	ValueKeys,
+	RecordKeys,
+	WholeFieldKeys,
 	MapKeys,
-	ExtractPermanent,
+	ExtractValue,
+	ExtractRecord,
 	ExtractMapItem,
 	DeepPartial,
 	DeepReadonly,
@@ -334,6 +337,54 @@ export function createSyncableStore<S extends Schema>(
 		}
 	}
 
+	/**
+	 * Write a value or record field, stamping timestamps at the granularity the
+	 * field type merges at: one field-level timestamp for a value field,
+	 * per-property timestamps for a record field.
+	 *
+	 * A record field deliberately does NOT maintain a field-level timestamp.
+	 * `mergeRecord` treats a field-level timestamp as the floor for properties
+	 * that have none, so writing one here would make untouched properties look
+	 * freshly edited and beat another device's genuine edit.
+	 */
+	function writeWholeField(
+		field: string,
+		newValue: unknown,
+		stamped: string[] | 'all',
+		now: number,
+	): void {
+		if (!internalStorage) return;
+
+		(internalStorage.data as Record<string, unknown>)[field] = newValue;
+
+		if (schema[field].__type !== 'record') {
+			(internalStorage.$timestamps as Record<string, number>)[field] = now;
+			return;
+		}
+
+		const allTimestamps = internalStorage.$itemTimestamps as Record<string, Record<string, number>>;
+		const timestamps = allTimestamps[field] ?? {};
+		const keys = stamped === 'all' ? Object.keys((newValue ?? {}) as object) : stamped;
+		for (const key of keys) {
+			timestamps[key] = now;
+		}
+		allTimestamps[field] = timestamps;
+	}
+
+	/** Top-level property names whose value differs between two structs. */
+	function changedProperties(before: object, after: object): string[] {
+		const previous = (before ?? {}) as Record<string, unknown>;
+		const next = (after ?? {}) as Record<string, unknown>;
+		const keys = new Set([...Object.keys(previous), ...Object.keys(next)]);
+		const changed: string[] = [];
+		for (const key of keys) {
+			if (!Object.is(previous[key], next[key])) {
+				changed.push(key);
+			}
+		}
+		return changed;
+	}
+
 	function createDefaultInternalStorage(): InternalStorage<S> {
 		return {
 			$version: schemaVersion,
@@ -613,18 +664,17 @@ export function createSyncableStore<S extends Schema>(
 			return account;
 		},
 
-		set<K extends PermanentKeys<S>>(
+		set<K extends WholeFieldKeys<S>>(
 			field: K,
-			value: ExtractPermanent<S[K]>,
+			value: DataOf<S>[K],
 			options?: MutationOptions,
 		): void {
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
 
-			const now = clock();
-			(internalStorage.data as Record<string, unknown>)[field as string] = value;
-			(internalStorage.$timestamps as Record<string, number>)[field as string] = now;
+			// `set` asserts the whole field, so on a record every property is stamped.
+			writeWholeField(field as string, value, 'all', clock());
 
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
@@ -637,21 +687,22 @@ export function createSyncableStore<S extends Schema>(
 			markDirty();
 		},
 
-		update<K extends PermanentKeys<S>>(
+		update<K extends RecordKeys<S>>(
 			field: K,
-			value: DeepPartial<ExtractPermanent<S[K]>>,
+			value: DeepPartial<ExtractRecord<S[K]>>,
 			options?: MutationOptions,
 		): void {
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
 
-			const now = clock();
 			const current = (internalStorage.data as Record<string, unknown>)[field as string];
 			const merged = deepMerge(current, value);
 
-			(internalStorage.data as Record<string, unknown>)[field as string] = merged;
-			(internalStorage.$timestamps as Record<string, number>)[field as string] = now;
+			// Only the properties actually supplied are stamped, so a concurrent edit
+			// to any other property still wins its own merge.
+			const touched = Object.keys((value ?? {}) as object);
+			writeWholeField(field as string, merged, touched, clock());
 
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
@@ -792,28 +843,30 @@ export function createSyncableStore<S extends Schema>(
 			markDirty();
 		},
 
-		patch<K extends PermanentKeys<S>>(
+		patch<K extends WholeFieldKeys<S>>(
 			field: K,
-			updateFn: (current: ExtractPermanent<S[K]>) => ExtractPermanent<S[K]>,
+			updateFn: (current: DataOf<S>[K]) => DataOf<S>[K],
 			options?: MutationOptions,
 		): void {
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
 
-			const now = clock();
 			const current = (internalStorage.data as Record<string, unknown>)[
 				field as string
-			] as ExtractPermanent<S[K]>;
+			] as DataOf<S>[K];
 			let newValue = updateFn(current);
 
 			// If same reference, create a new one to ensure change detection
 			if (newValue === current) {
-				newValue = {...(newValue as object)} as ExtractPermanent<S[K]>;
+				newValue = {...(newValue as object)} as DataOf<S>[K];
 			}
 
-			(internalStorage.data as Record<string, unknown>)[field as string] = newValue;
-			(internalStorage.$timestamps as Record<string, number>)[field as string] = now;
+			// On a record only the properties whose value actually changed are stamped.
+			// Over-stamping is the safe direction (this device simply wins that
+			// property); under-stamping would silently drop the edit.
+			const changed = changedProperties(current as object, newValue as object);
+			writeWholeField(field as string, newValue, changed, clock());
 
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
@@ -1054,10 +1107,12 @@ export function createSyncableStore<S extends Schema>(
 
 			const fieldDef = schema[field];
 			const isMap = fieldDef.__type === 'map';
+			// Record fields emit a field-level ':changed' event like value fields, so
+			// the non-map branch below is correct for them without further dispatch.
 
 			const getCurrentValue = (): FieldType => {
 				if (asyncState.status !== 'ready') {
-					// Map fields return empty record when store not ready, permanent fields return undefined
+					// Map fields return empty record when store not ready; value and record fields return undefined
 					return (isMap ? {} : undefined) as FieldType;
 				}
 				return asyncState.data[field];
