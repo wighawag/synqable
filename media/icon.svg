@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="synqable">
+  <title>synqable</title>
+  <defs>
+    <mask id="synqable-icon-seam">
+      <rect x="20" y="20" width="216" height="216" rx="42" fill="#fff"/>
+      <path d="M116 12 V96 H174 V160 H116 V244" fill="none" stroke="#000" stroke-width="32"/>
+    </mask>
+  </defs>
+  <rect width="256" height="256" rx="46" fill="#12141a"/>
+  <g mask="url(#synqable-icon-seam)">
+    <rect width="256" height="256" fill="#e5399f"/>
+    <path d="M116 0 V96 H174 V160 H116 V256 H0 V0 Z" fill="#eef1f6"/>
+  </g>
+</svg>

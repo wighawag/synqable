@@ -1,3 +1,7 @@
+<div align="center">
+<a href="https://github.com/wighawag/synqable"><img alt="synqable - Local-first stores that converge on your terms." src="https://raw.githubusercontent.com/wighawag/synqable/main/media/preview.png" width="640" /></a>
+</div>
+
 # synqable
 
 A TypeScript library for building **syncable local-first stores** with multi-account support, offline-first operations, and CRDT-style conflict resolution.

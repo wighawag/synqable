@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="synqable" style="color: #0f172a">
+  <title>synqable</title>
+  <defs>
+    <mask id="synqable-seam">
+      <rect x="16" y="16" width="224" height="224" rx="52" fill="#fff"/>
+      <path d="M128 8 V68 H88 V128 H168 V188 H128 V248" fill="none" stroke="#000" stroke-width="20"/>
+    </mask>
+  </defs>
+  <g mask="url(#synqable-seam)">
+    <rect width="256" height="256" fill="#e5399f"/>
+    <path d="M128 0 V68 H88 V128 H168 V188 H128 V256 H0 V0 Z" fill="currentColor"/>
+  </g>
+</svg>

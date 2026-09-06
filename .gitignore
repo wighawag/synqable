@@ -1,3 +1,6 @@
 node_modules/
 dist/
 tmp/
+# branding scratch: contact sheets and rejected variants.
+# The decisions they produced are recorded in media/README.md.
+media/concepts/

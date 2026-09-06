@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <!-- AUTHORED SOURCE. Text is live here and needs fonts/Manrope-Variable.ttf.
+       build.sh converts this to preview.svg (outlined, font-free) and preview.png.
+       Type sizes are solved to measured ink boxes - see README.md before changing copy. -->
+  <defs>
+    <radialGradient id="card-glow" cx="18%" cy="82%" r="62%">
+      <stop offset="0" stop-color="#e5399f" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#e5399f" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="card-seam">
+      <rect x="16" y="16" width="224" height="224" rx="52" fill="#fff"/>
+      <path d="M128 8 V68 H88 V128 H168 V188 H128 V248" fill="none" stroke="#000" stroke-width="20"/>
+    </mask>
+    <g id="card-motif" fill="none" stroke="#eef1f6" stroke-width="9">
+      <rect x="16" y="16" width="224" height="224" rx="52"/>
+      <path d="M128 8 V68 H88 V128 H168 V188 H128 V248"/>
+    </g>
+  </defs>
+
+  <rect width="1280" height="640" fill="#12141a"/>
+  <rect width="1280" height="640" fill="url(#card-glow)"/>
+
+  <g opacity="0.05">
+    <use href="#card-motif" transform="translate(1055,425) scale(0.55)"/>
+    <use href="#card-motif" transform="translate(880,505) scale(0.35)"/>
+    <use href="#card-motif" transform="translate(1170,180) scale(0.40)"/>
+  </g>
+
+  <!-- lockup centred as a group: mark ink 133..433, type ink 507..1147, equal 133 margins -->
+  <g transform="translate(37,0)">
+    <g transform="translate(74.571,148.571) scale(1.339286)" mask="url(#card-seam)">
+      <rect width="256" height="256" fill="#e5399f"/>
+      <path d="M128 0 V68 H88 V128 H168 V188 H128 V256 H0 V0 Z" fill="#eef1f6"/>
+    </g>
+    <text id="wordmark" x="464.1665" y="323" style="font-family:'Manrope';font-weight:800;font-size:145.8372px;fill:#eef1f6">synqable</text>
+    <rect x="470" y="375" width="120" height="6" rx="3" fill="#e5399f"/>
+    <text id="tagline" x="467.9226" y="417" style="font-family:'Manrope';font-weight:500;font-size:25.968px;fill:#8e97a8">Local-first stores that converge on your terms.</text>
+  </g>
+</svg>
