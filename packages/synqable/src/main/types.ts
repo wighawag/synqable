@@ -345,6 +345,11 @@ export type StoreEvents<S extends Schema> = BaseStoreEvents<S> & SchemaEvents<S>
  * - `idle`: not loaded (`isLoading` is true while a load is in flight).
  * - `ready`: loaded, `data` available.
  * - `error`: the last load failed; `loadError` holds the error. `retryLoad()` starts again.
+ *
+ * A `SyncableStore` always fills `account` with its own account, in `idle` too;
+ * `undefined` stays in the `idle` type for compatibility only. The "no account
+ * connected" meaning of `idle` with no account belongs to `StoreLifecycleState`,
+ * as reported by a multi-account store's `state$`.
  */
 export type AsyncState<T> =
 	| {status: 'idle'; account: `0x${string}` | undefined; isLoading: boolean; loadError: null}
@@ -354,6 +359,11 @@ export type AsyncState<T> =
 /**
  * Store lifecycle state - for observing load status.
  * Does NOT include data - use get() for current data or watchField/watchItem for reactivity.
+ *
+ * A single-account store always carries its own `account`, in `idle` too, so an
+ * account whose data has not started loading yet reports `idle` with that account.
+ * `idle` with `account: undefined` is produced only by a multi-account store, and
+ * means exactly "no account connected" (before any account, or after a disconnect).
  */
 export type StoreLifecycleState =
 	| {status: 'idle'; account: `0x${string}` | undefined; isLoading: false; loadError: null}

@@ -147,7 +147,9 @@ export interface MultiAccountStore<S extends Schema> {
 
 	/**
 	 * Reactive lifecycle state derived from current store.
-	 * Returns idle state when no account connected.
+	 * Returns `idle` with `account: undefined` when no account is connected, and only
+	 * then: while an account is connected every value carries that account, including
+	 * the `idle` a new store reports between its creation and the start of its load.
 	 * RENAMED from accountState for consistency with SyncableStore.state$
 	 */
 	readonly state$: Readable<StoreLifecycleState>;

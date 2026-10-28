@@ -69,10 +69,12 @@ export function createSyncableStore<S extends Schema>(
 	const maxRetries = syncOptions?.maxRetries ?? 3;
 	const retryBackoffMs = syncOptions?.retryBackoffMs ?? 1000;
 
-	// State
+	// State. A single-account store knows its account from the start, so even its
+	// `idle` carries it: `idle` with no account is reserved for a multi-account
+	// store with no account connected.
 	let asyncState: AsyncState<DataOf<S>> = {
 		status: 'idle',
-		account: undefined,
+		account,
 		isLoading: false,
 		loadError: null,
 	};
@@ -279,7 +281,7 @@ export function createSyncableStore<S extends Schema>(
 		}
 		return {
 			status: 'idle',
-			account: asyncState.account,
+			account,
 			isLoading: false,
 			loadError: null,
 		};
@@ -1368,7 +1370,7 @@ export function createSyncableStore<S extends Schema>(
 				throw new Error('Can only retry when load has failed');
 			}
 
-			asyncState = {status: 'idle', account: undefined, isLoading: false, loadError: null};
+			asyncState = {status: 'idle', account, isLoading: false, loadError: null};
 			load();
 		},
 

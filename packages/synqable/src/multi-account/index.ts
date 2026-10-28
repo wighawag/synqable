@@ -66,6 +66,8 @@ function isSameAccountOrSigner(
 // Default Status Values
 // ============================================================================
 
+// The only source of `idle` with no account: it means "no account connected".
+// A single-account store's `idle` always carries its own account.
 const idleLifecycleState: StoreLifecycleState = {
 	status: 'idle',
 	account: undefined,
