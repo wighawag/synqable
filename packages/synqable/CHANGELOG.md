@@ -1,5 +1,11 @@
 # synqable
 
+## 0.2.1
+
+### Patch Changes
+
+- fd2a2e9: A single-account store's `idle` state now always carries its own `account`, in `get()` and in `state$`: from creation, and after `retryLoad()` (previously a fresh store reported `account: undefined` until its load started). As a result, `idle` with `account: undefined` now means exactly "no account connected": only a multi-account store with no current account produces it (before any account, or after a disconnect), and while an account is connected every value of the multi-account `state$` carries that account, including the brief `idle` between a connect or switch and the start of the new store's load. Consumers can therefore tell "no account" from "an account whose data is about to load" from `state$` alone, without also subscribing to the multi-account store. Nothing breaks: the types are unchanged (`idle`'s `account` is still `` `0x${string}` | undefined ``), and the only behaviour change is that a value which used to be `undefined` is now the store's account.
+
 ## 0.2.0
 
 ### Minor Changes
