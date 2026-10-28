@@ -199,12 +199,12 @@ multiStore.subscribe((store) => {
 });
 
 // Write to the current account, the same two ways as a single store
-multiStore.writer()?.set('activeWorkspaceId', 'workspace-2');
+multiStore.writer()?.update('settings', { theme: 'dark' });
 const writer = await multiStore.ready();
 // rejects with reason 'account-switched' if the account changes or disconnects
 // before its store loads, 'no-account' at once if there is none, 'stopped' if
 // the last subscriber leaves first. A handle held across a switch throws.
-writer.set('activeWorkspaceId', 'workspace-3');
+writer.update('settings', { notifications: false });
 
 // Use reactive state directly (works across account switches)
 multiStore.state$.subscribe((state) => {
