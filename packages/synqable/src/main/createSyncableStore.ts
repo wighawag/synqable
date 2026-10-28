@@ -302,7 +302,7 @@ export function createSyncableStore<S extends Schema>(
 	}
 
 	function scheduleSync(): void {
-		if (!syncAdapter || asyncState.status !== 'ready') return;
+		if (!syncAdapter || stopped || asyncState.status !== 'ready') return;
 
 		if (syncDebounceTimer) {
 			clearTimeout(syncDebounceTimer);
@@ -314,7 +314,9 @@ export function createSyncableStore<S extends Schema>(
 	}
 
 	async function performSync(retryCount = 0): Promise<void> {
-		if (!syncAdapter || !internalStorage || asyncState.status !== 'ready') return;
+		// A stopped store does not sync: stop() is terminal, and a merge saved by a
+		// stopped store would race the fresh store for the same account.
+		if (!syncAdapter || !internalStorage || stopped || asyncState.status !== 'ready') return;
 
 		// Prevent concurrent syncs - just set flag
 		if (mutableSyncStatus.isSyncing) {
@@ -331,6 +333,11 @@ export function createSyncableStore<S extends Schema>(
 			}
 
 			const pullResponse = await syncAdapter.pull(currentAccount);
+
+			if (stopped) {
+				mutableSyncStatus.isSyncing = false;
+				return;
+			}
 
 			// Handle pull error
 			if (!pullResponse.success) {
@@ -703,26 +710,6 @@ export function createSyncableStore<S extends Schema>(
 			logger.debug('load:cleanup:complete', {storageKey});
 
 			// Cleanup results will be persisted when the next mutation or sync occurs
-
-			asyncState = {
-				status: 'ready',
-				account,
-				isLoading: false,
-				loadError: null,
-				data: internalStorage.data,
-			};
-			emitStateEvent({type: 'ready'});
-			logger.info('load:ready', {storageKey, account});
-			settleReadyWaiters({writer: writerHandle});
-
-			if (syncAdapter) {
-				logger.debug('load:triggerSync', {storageKey});
-				performSync();
-			}
-
-			setupStorageWatch();
-			setupGlobalListeners();
-			logger.debug('load:setupComplete', {storageKey});
 		} catch (error) {
 			logger.error('load:error', {storageKey, error});
 			if (stopped) {
@@ -732,9 +719,35 @@ export function createSyncableStore<S extends Schema>(
 			}
 			const loadError = error as Error;
 			asyncState = {status: 'error', account, isLoading: false, loadError};
-			emitStateEvent({type: 'error', error: loadError});
 			settleReadyWaiters({error: loadFailedError(loadError)});
+			emitStateEvent({type: 'error', error: loadError});
+			return;
 		}
+
+		// Ready. Outside the try on purpose: only a failure to READ the data is a
+		// load error. A state listener that throws on 'ready' propagates out of
+		// load() but leaves the store ready, rather than turning it into 'error'
+		// after 'ready' was already announced.
+		//
+		// Everything is installed BEFORE the event is emitted, so a listener that
+		// reacts to 'ready' by calling stop() tears down what is really there,
+		// instead of the load installing listeners on a stopped store afterwards.
+		asyncState = {
+			status: 'ready',
+			account,
+			isLoading: false,
+			loadError: null,
+			data: internalStorage.data,
+		};
+		setupStorageWatch();
+		setupGlobalListeners();
+		settleReadyWaiters({writer: writerHandle});
+		if (syncAdapter) {
+			logger.debug('load:triggerSync', {storageKey});
+			performSync();
+		}
+		logger.info('load:ready', {storageKey, account});
+		emitStateEvent({type: 'ready'});
 	}
 
 	// The write handle. Created once; only handed out while the store is ready.
@@ -1126,6 +1139,12 @@ export function createSyncableStore<S extends Schema>(
 				clearTimeout(storageDebounceTimer);
 				storageDebounceTimer = undefined;
 			}
+			// A write accepted before stop() is still saved: dropping the debounced
+			// save would lose it silently (a switch within debounceMs of a write).
+			// performStorageSave reports a failure through storageStatus$, never throws.
+			if (storageSavePending) {
+				void performStorageSave();
+			}
 
 			if (syncDebounceTimer) {
 				clearTimeout(syncDebounceTimer);
@@ -1331,7 +1350,7 @@ export function createSyncableStore<S extends Schema>(
 		},
 
 		async syncNow(): Promise<void> {
-			if (!syncAdapter || asyncState.status !== 'ready') return;
+			if (!syncAdapter || stopped || asyncState.status !== 'ready') return;
 
 			if (syncDebounceTimer) {
 				clearTimeout(syncDebounceTimer);

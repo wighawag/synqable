@@ -288,8 +288,12 @@ export function createMultiAccountStore<S extends Schema>(
 		}
 
 		notify();
-		// load it
-		store.load();
+		// Load it, unless a subscriber notified above already replaced or stopped
+		// it (load() rejects on a stopped store). Load errors are not lost by the
+		// catch: they surface through state$ and ready().
+		if (currentStore === store) {
+			store.load().catch(() => {});
+		}
 	}
 
 	function start(): void {
@@ -387,7 +391,7 @@ export function createMultiAccountStore<S extends Schema>(
 			) {
 				throw new StoreUnavailableError(
 					'account-switched',
-					`The account switched away from ${store.account} before its store loaded`,
+					`The account (or its signer) changed from ${store.account} before its store loaded`,
 					{account: store.account, cause: error},
 				);
 			}

@@ -39,6 +39,7 @@ function createGatedStorage() {
 	const saves: {key: string; value: Stored}[] = [];
 	const pending: {key: string; resolve: () => void; reject: (e: Error) => void}[] = [];
 	let watchCalls = 0;
+	let activeWatches = 0;
 	let gated = true;
 
 	const storage: AsyncStorage<Stored> & WatchableStorage<Stored> = {
@@ -66,7 +67,10 @@ function createGatedStorage() {
 		},
 		watch() {
 			watchCalls++;
-			return () => {};
+			activeWatches++;
+			return () => {
+				activeWatches--;
+			};
 		},
 	};
 
@@ -76,6 +80,9 @@ function createGatedStorage() {
 		saves,
 		get watchCalls() {
 			return watchCalls;
+		},
+		get activeWatches() {
+			return activeWatches;
 		},
 		ungate() {
 			gated = false;
@@ -619,5 +626,140 @@ describe('reads do not change (R7)', () => {
 		const state = store.get();
 		if (state.status !== 'ready') throw new Error('expected ready');
 		expect(state.data.settings.theme).toBe('light');
+	});
+});
+
+describe('re-entrancy and teardown edges (review)', () => {
+	it('stop() from a ready listener leaves no listener installed and no handle', async () => {
+		const gated = createGatedStorage();
+		gated.ungate();
+		const store = createStore(gated);
+		store.on('$store:state', (e) => {
+			if (e.type === 'ready') store.stop();
+		});
+		await store.load();
+		expect(gated.watchCalls).toBe(1);
+		expect(gated.activeWatches).toBe(0);
+		expect(store.writer()).toBeUndefined();
+		await expectUnavailable(store.ready(), 'stopped');
+	});
+
+	it('writer() and ready() called from a ready listener see the loaded store', async () => {
+		const gated = createGatedStorage();
+		gated.ungate();
+		const store = createStore(gated);
+		let fromListener: unknown;
+		let readyFromListener: Promise<unknown> | undefined;
+		store.state$.subscribe((s) => {
+			if (s.status === 'ready') {
+				fromListener = store.writer();
+				readyFromListener = store.ready();
+			}
+		});
+		await store.load();
+		expect(fromListener).toBe(store.writer());
+		expect(await readyFromListener).toBe(store.writer());
+	});
+
+	it('a ready listener that throws does not turn a loaded store into error', async () => {
+		const gated = createGatedStorage();
+		gated.ungate();
+		const store = createStore(gated);
+		const ready = store.ready();
+		store.on('$store:state', (e) => {
+			if (e.type === 'ready') throw new Error('listener bug');
+		});
+		await expect(store.load()).rejects.toThrow('listener bug');
+		expect(store.get().status).toBe('ready');
+		expect(await ready).toBe(store.writer());
+	});
+
+	it('a debounced write is still saved when the store is stopped within the debounce', async () => {
+		const gated = createGatedStorage();
+		gated.ungate();
+		const store = createSyncableStore({
+			schema,
+			account: A,
+			storage: {adapterFactory: () => gated.storage, key: 'k', options: {debounceMs: 10_000}},
+			defaultData,
+		});
+		await store.load();
+		store.writer()!.set('settings', {theme: 'written-before-stop'});
+		store.stop();
+		await tick(10);
+		expect(gated.data.get('k')!.data.settings.theme).toBe('written-before-stop');
+	});
+
+	it('a stopped store does not sync', async () => {
+		const gated = createGatedStorage();
+		gated.ungate();
+		let pulls = 0;
+		const sync: SyncAdapter<TestSchema> = {
+			async pull() {
+				pulls++;
+				return {success: true, data: null, counter: 0n};
+			},
+			async push() {
+				return {success: true};
+			},
+		};
+		const store = createStore(gated, sync);
+		await store.load();
+		await tick(20);
+		const before = pulls;
+		store.stop();
+		await store.syncNow();
+		await tick(20);
+		expect(pulls).toBe(before);
+	});
+
+	it('multi: a subscriber that unsubscribes on the new store does not leave an unhandled rejection', async () => {
+		const gated = createGatedStorage();
+		gated.ungate();
+		const {multi, accounts} = createMulti(gated);
+		let unsubscribe: () => void = () => {};
+		unsubscribe = multi.subscribe((store) => {
+			if (store) unsubscribe();
+		});
+		// vitest fails the run on an unhandled rejection, which is the assertion here.
+		accounts.set(A);
+		await tick(20);
+		expect(multi.get()).toBeNull();
+	});
+});
+
+describe('multi: same address, different signer (review)', () => {
+	it('ready() rejects with account-switched when only the private key changes before the load', async () => {
+		const gated = createGatedStorage();
+		let current: {owner: `0x${string}`; privateKey: `0x${string}`} | undefined;
+		const subscribers = new Set<(v: typeof current) => void>();
+		const multi = createMultiAccountStore({
+			schema,
+			accountStore: {
+				subscribe(cb: (v: typeof current) => void) {
+					subscribers.add(cb);
+					cb(current);
+					return () => subscribers.delete(cb);
+				},
+			},
+			factory: (account) =>
+				createSyncableStore({
+					schema,
+					account,
+					storage: {adapterFactory: () => gated.storage, key: account},
+					defaultData,
+				}),
+		});
+		const set = (v: typeof current) => {
+			current = v;
+			for (const cb of subscribers) cb(v);
+		};
+		const unsubscribe = multi.subscribe(() => {});
+		set({owner: A, privateKey: '0x01'});
+		const ready = multi.ready();
+		set({owner: A, privateKey: '0x02'});
+		const error = await expectUnavailable(ready, 'account-switched');
+		expect(error.account).toBe(A);
+		unsubscribe();
 	});
 });
