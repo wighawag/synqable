@@ -4,11 +4,13 @@
 
 Writes need a handle that only a loaded store can give, so a write before the load no longer compiles.
 
-**Breaking:** the mutators (`set`, `update`, `patch`, `addItem`, `setItem`, `updateItem`, `patchItem`, `removeItem`) move off `SyncableStore` onto a write handle, `StoreWriter<S>`. Get it with `store.writer()` (synchronous: the handle if loaded now, `undefined` otherwise) or `await store.ready()` (resolves once loaded; rejects with a `StoreUnavailableError` on a load error or when the store is stopped first, never hangs). The multi-account store has the same `writer()` and `ready()` for the current account, and its `ready()` also rejects when the account switches or disconnects before the load (`reason: 'account-switched'`) and at once when there is no account (`'no-account'`). The handle carries `account` and `read()` (the current data, deeply readonly). The runtime `Store is not ready` check stays as a defence.
+**Breaking:** the mutators (`set`, `update`, `patch`, `addItem`, `setItem`, `updateItem`, `patchItem`, `removeItem`) move off `SyncableStore` onto a write handle, `StoreWriter<S>`. Get it with `store.writer()` (synchronous: the handle if loaded now, `undefined` otherwise) or `await store.ready()` (resolves once loaded; rejects with a `StoreUnavailableError` on a load error or when the store is stopped first, rather than hanging; it does not start the load). The multi-account store has the same `writer()` and `ready()` for the current account, and its `ready()` also rejects when the account switches or disconnects before the load (`reason: 'account-switched'`) and at once when there is no account (`'no-account'`). The handle carries `account` and `read()` (the current data, deeply readonly). The runtime `Store is not ready` check stays as a defence.
 
 **Breaking:** a failed load is now its own status, `error`, in `AsyncState`, `StoreLifecycleState` and the `$store:state` event (`{type: 'error', error}`), with the error kept as `loadError`. `idle` always has `loadError: null`. `retryLoad()` is allowed from `error` only.
 
-**Breaking:** `stop()` is terminal and revokes the handle. Every handle method then throws a `StoreUnavailableError` with `reason: 'stopped'`. Before, a write through a stopped store was saved and pushed anyway and then silently overwritten by the next store for that account (measured; see `plans/typed-ready-writes.md`). `load()` after `stop()` now throws, and a load still in flight when `stop()` is called (an account switch during loading) no longer becomes `ready` or installs its listeners after they were torn down.
+**Breaking:** `stop()` is terminal and revokes the handle. Every handle method then throws a `StoreUnavailableError` with `reason: 'stopped'`. Before, a write through a stopped store was saved and pushed anyway and then silently overwritten by the next store for that account (measured; see `plans/typed-ready-writes.md`). `load()` after `stop()` now rejects, a load still in flight when `stop()` is called (an account switch during loading) no longer becomes `ready` or installs its listeners after they were torn down, and a stopped store no longer syncs.
+
+**Fixed:** `stop()` dropped a pending debounced save, so a write made within `debounceMs` of an account switch was lost. It is now saved. A `state$` listener that throws on `ready` no longer turns a loaded store into a failed one (the error propagates out of `load()`, the store stays `ready`), and a listener that calls `stop()` on `ready` tears down every listener the load installed.
 
 New exports: `StoreWriter`, `StoreUnavailableError`, `StoreUnavailableReason`.
 
@@ -45,8 +47,8 @@ This covers 0.1.0 as well, for callers moving straight from 0.0.13. Map fields m
    if (w && w.read().ops[id]) w.patchItem('ops', id, fn);
 
    // a writer that must wait for the load (and must not proceed without it)
-   const w = await store.ready(); // rejects: 'load-failed' (cause: the load error) or 'stopped'
-   w.set('secret', value, {immediate: true});
+   const secretWriter = await store.ready(); // rejects: 'load-failed' (cause: the load error) or 'stopped'
+   secretWriter.set('secret', value, {immediate: true});
    ```
 
    On a multi-account store, `multi.get()?.addItem(...)` becomes `multi.writer()?.addItem(...)`, and `await multi.ready()` waits for the current account, rejecting with `'account-switched'`, `'no-account'`, `'stopped'` or `'load-failed'`. A handle is bound to its account: re-obtain it after a switch rather than keeping one across it, since a revoked handle throws.

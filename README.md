@@ -155,7 +155,7 @@ try {
 
 `ready()` does not start the load (call `load()`, or let the multi-account store do it). It rejects rather than hangs: on a load error, and when the store is stopped before it loads.
 
-The handle is the same object for the store's lifetime, so it can be kept. It also has `account` (which account it writes to) and `read()` (the current data, deeply readonly), for a read-modify-write without narrowing `get()` again. `stop()` revokes it: every method then throws a `StoreUnavailableError` with `reason: 'stopped'`, rather than writing into a store nobody reads any more (which, before 0.2.0, was saved and pushed anyway, and then overwritten by the next store for that account).
+The handle is the same object for the store's lifetime, so it can be kept. It also has `account` (which account it writes to) and `read()` (the current data, deeply readonly), for a read-modify-write without narrowing `get()` again. `stop()` revokes it (a write accepted before `stop()` is still saved): every method then throws a `StoreUnavailableError` with `reason: 'stopped'`, rather than writing into a store nobody reads any more (which, before 0.2.0, was saved and pushed anyway, and then overwritten by the next store for that account).
 
 No write is queued while the store loads. A queued write would make "written" mean "will be written", which is not good enough for data that must be stored before something else happens.
 
@@ -505,7 +505,7 @@ store.on('$store:storage', (event) => {
 
 | Method | Description |
 |--------|-------------|
-| `load()` | Initialize the store by loading from storage (throws after `stop()`) |
+| `load()` | Initialize the store by loading from storage (rejects after `stop()`) |
 | `get()` | Get current async state synchronously |
 | `writer()` | The write handle if loaded now, `undefined` otherwise |
 | `ready()` | Promise of the write handle once loaded; rejects with `StoreUnavailableError` on a load error or `stop()` |
@@ -531,9 +531,10 @@ store.on('$store:storage', (event) => {
 | `addItem(field, key, value, options)` | Add an item to a map field (requires `deleteAt`) |
 | `setItem(field, key, value)` | Set a map item (full replacement, preserves `deleteAt`) |
 | `updateItem(field, key, partial)` | Update a map item with partial updates (deep merge) |
+| `patchItem(field, key, fn)` | Patch a map item with a function (preserves `deleteAt`) |
 | `removeItem(field, key)` | Remove an item from a map field |
 
-Every method throws a `StoreUnavailableError` with `reason: 'stopped'` once the store is stopped.
+Every method (`read()` included, `account` excepted) throws a `StoreUnavailableError` with `reason: 'stopped'` once the store is stopped.
 
 ### Store Properties
 

@@ -695,7 +695,7 @@ export interface SyncableStore<S extends Schema> {
 		callback: (data: StoreEventsWithSync<S>[E]) => void,
 	): void;
 
-	/** Load data from storage - must be called to initialize. Throws after `stop()`. */
+	/** Load data from storage - must be called to initialize. Rejects after `stop()`. */
 	load(): Promise<void>;
 
 	/**
