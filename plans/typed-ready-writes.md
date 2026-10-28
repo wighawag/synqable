@@ -28,7 +28,7 @@ The runtime `Store is not ready` check stays inside every mutator as a defence, 
 
 **A distinct `error` status** replaces `idle` with `loadError`, in `AsyncState`, `StoreLifecycleState` and the `$store:state` event. The error object stays on it as `loadError`, and `idle` now always has `loadError: null`. `retryLoad()` is allowed from `error` only.
 
-The handle also carries `account` (which account it writes to) and `data` (the current data, deeply readonly), so a read-modify-write needs one narrowing, not two. Reading `data` through a revoked handle throws like a write: a handle is a claim that its store is live.
+The handle also carries `account` (which account it writes to) and `read()` (the current data, deeply readonly), so a read-modify-write needs one narrowing, not two. `read()` through a revoked handle throws like a write: a handle is a claim that its store is live. It is a method rather than a `data` getter because a getter that throws breaks anything that inspects the handle (a debugger, a test matcher walking its properties), which the first version of this change measured.
 
 Reads do not change: `get()` narrows on `status === 'ready'` for `data` as before, and `watchField`, `watchItem`, `watchItemIds` and `state$` are untouched.
 

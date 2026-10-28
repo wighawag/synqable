@@ -86,38 +86,78 @@ if (state.status === 'ready') {
   console.log('Tasks:', state.data.tasks);
 }
 
+// Writes go through the write handle, which only a loaded store hands out
+// (see Writing below). `ready()` waits for the load; `writer()` does not.
+const writer = await store.ready();
+
 // Set a value field
-store.set('activeWorkspaceId', 'workspace-2');
+writer.set('activeWorkspaceId', 'workspace-2');
 
 // Set a record field (full replacement - stamps every property)
-store.set('settings', { theme: 'dark', notifications: false });
+writer.set('settings', { theme: 'dark', notifications: false });
 
 // Update a record field with partial updates (stamps only `theme`, so a
 // concurrent edit to `notifications` on another device still survives)
-store.update('settings', { theme: 'light' });
+writer.update('settings', { theme: 'light' });
 
 // Add a map item (with required deleteAt timestamp)
-store.addItem('tasks', 'task-1', { title: 'Buy milk', completed: false }, {
+writer.addItem('tasks', 'task-1', { title: 'Buy milk', completed: false }, {
   deleteAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
 });
 
 // Set a map item (full replacement, preserves deleteAt)
-store.setItem('tasks', 'task-1', { title: 'Buy milk', completed: true });
+writer.setItem('tasks', 'task-1', { title: 'Buy milk', completed: true });
 
 // Update a map item with partial updates (deep merge, preserves deleteAt)
-store.updateItem('tasks', 'task-1', { completed: true });
+writer.updateItem('tasks', 'task-1', { completed: true });
 
 // Remove a map item
-store.removeItem('tasks', 'task-1');
+writer.removeItem('tasks', 'task-1');
 
 // Subscribe to lifecycle state changes
 const unsubscribe = store.state$.subscribe((state) => {
-  console.log('Status:', state.status); // 'idle' | 'loading' | 'ready'
+  console.log('Status:', state.status); // 'idle' | 'loading' | 'ready' | 'error'
   console.log('Account:', state.account);
   console.log('Is loading:', state.isLoading);
-  console.log('Load error:', state.loadError);
+  console.log('Load error:', state.loadError); // an Error only when status is 'error'
 });
 ```
+
+## Writing
+
+Loading is asynchronous for every adapter (encryption uses `crypto.subtle`, which has no synchronous form), per account, and repeats on every account switch. So "not loaded yet" is an ordinary state, and the types make you handle it: the mutators (`set`, `update`, `patch`, `addItem`, `setItem`, `updateItem`, `patchItem`, `removeItem`) are not on the store, they are on a write handle, `StoreWriter<S>`, that only a loaded store gives out. Writing before the load does not compile.
+
+Two ways to get it:
+
+```typescript
+import { StoreUnavailableError } from 'synqable';
+
+// Synchronous: the handle if loaded now, undefined otherwise.
+// For a writer that has its own fallback.
+const writer = store.writer();
+if (writer) {
+  writer.addItem('tasks', id, task, { deleteAt });
+} else {
+  keepInMyOwnLedger(task);
+}
+
+// Asynchronous: waits for the load, for a writer that must not proceed without it.
+try {
+  const writer = await store.ready();
+  writer.set('activeWorkspaceId', id, { immediate: true });
+} catch (error) {
+  if (error instanceof StoreUnavailableError) {
+    // error.reason: 'load-failed' (error.cause is the load error), 'stopped',
+    // and on a multi-account store 'account-switched' or 'no-account'
+  }
+}
+```
+
+`ready()` does not start the load (call `load()`, or let the multi-account store do it). It rejects rather than hangs: on a load error, and when the store is stopped before it loads.
+
+The handle is the same object for the store's lifetime, so it can be kept. It also has `account` (which account it writes to) and `read()` (the current data, deeply readonly), for a read-modify-write without narrowing `get()` again. `stop()` revokes it: every method then throws a `StoreUnavailableError` with `reason: 'stopped'`, rather than writing into a store nobody reads any more (which, before 0.2.0, was saved and pushed anyway, and then overwritten by the next store for that account).
+
+No write is queued while the store loads. A queued write would make "written" mean "will be written", which is not good enough for data that must be stored before something else happens.
 
 ## Multi-Account Support
 
@@ -152,11 +192,19 @@ const multiStore = createMultiAccountStore({
 // Subscribe - automatically handles account switches
 multiStore.subscribe((store) => {
   if (store) {
-    // store is ready for current account
+    // the current account's store (it may still be loading)
   } else {
     // No account connected
   }
 });
+
+// Write to the current account, the same two ways as a single store
+multiStore.writer()?.set('activeWorkspaceId', 'workspace-2');
+const writer = await multiStore.ready();
+// rejects with reason 'account-switched' if the account changes or disconnects
+// before its store loads, 'no-account' at once if there is none, 'stopped' if
+// the last subscriber leaves first. A handle held across a switch throws.
+writer.set('activeWorkspaceId', 'workspace-3');
 
 // Use reactive state directly (works across account switches)
 multiStore.state$.subscribe((state) => {
@@ -419,7 +467,7 @@ taskIds$.subscribe((ids) => {
 Subscribe to granular change events:
 
 ```typescript
-// Permanent field changes
+// Value and record field changes
 store.on('settings:changed', (settings) => {
   console.log('Settings changed:', settings);
 });
@@ -439,7 +487,7 @@ store.on('tasks:removed', ({ key, item }) => {
 
 // Store lifecycle events
 store.on('$store:state', (event) => {
-  // { type: 'idle'; error?: Error } | { type: 'loading' } | { type: 'ready' }
+  // { type: 'idle' } | { type: 'loading' } | { type: 'ready' } | { type: 'error'; error: Error }
 });
 
 store.on('$store:sync', (event) => {
@@ -457,8 +505,26 @@ store.on('$store:storage', (event) => {
 
 | Method | Description |
 |--------|-------------|
-| `load()` | Initialize the store by loading from storage |
+| `load()` | Initialize the store by loading from storage (throws after `stop()`) |
 | `get()` | Get current async state synchronously |
+| `writer()` | The write handle if loaded now, `undefined` otherwise |
+| `ready()` | Promise of the write handle once loaded; rejects with `StoreUnavailableError` on a load error or `stop()` |
+| `on(event, callback)` | Subscribe to type-safe events |
+| `off(event, callback)` | Unsubscribe from events |
+| `watchField(field)` | Create a reactive store for a field |
+| `watchItem(field, key)` | Create a reactive store for a map item |
+| `watchItemIds(field)` | Create a reactive store for map item IDs |
+| `syncNow()` | Force immediate sync |
+| `retryLoad()` | Retry loading after a failed load (status `error`) |
+| `flush(timeoutMs?)` | Wait for pending storage saves |
+| `stop()` | Cleanup and stop all listeners; revokes the write handle |
+
+### Write Handle (`StoreWriter`) Methods
+
+| Method | Description |
+|--------|-------------|
+| `account` | The account this handle writes to |
+| `read()` | Current data (deeply readonly) |
 | `set(field, value)` | Replace a value or record field (on a record, stamps every property) |
 | `update(field, partial)` | Update a **record** field with partial updates (stamps only the supplied properties) |
 | `patch(field, fn)` | Patch a value or record field with a function (on a record, stamps only what changed) |
@@ -466,15 +532,8 @@ store.on('$store:storage', (event) => {
 | `setItem(field, key, value)` | Set a map item (full replacement, preserves `deleteAt`) |
 | `updateItem(field, key, partial)` | Update a map item with partial updates (deep merge) |
 | `removeItem(field, key)` | Remove an item from a map field |
-| `on(event, callback)` | Subscribe to type-safe events |
-| `off(event, callback)` | Unsubscribe from events |
-| `watchField(field)` | Create a reactive store for a field |
-| `watchItem(field, key)` | Create a reactive store for a map item |
-| `watchItemIds(field)` | Create a reactive store for map item IDs |
-| `syncNow()` | Force immediate sync |
-| `retryLoad()` | Retry loading after a migration failure |
-| `flush(timeoutMs?)` | Wait for pending storage saves |
-| `stop()` | Cleanup and stop all listeners |
+
+Every method throws a `StoreUnavailableError` with `reason: 'stopped'` once the store is stopped.
 
 ### Store Properties
 
@@ -491,6 +550,8 @@ store.on('$store:storage', (event) => {
 |--------|-------------|
 | `subscribe(callback)` | Subscribe to current store changes |
 | `get()` | Get current store synchronously (null if no account) |
+| `writer()` | The current account's write handle if loaded now, `undefined` otherwise |
+| `ready()` | Promise of the current account's write handle; rejects on a load error, an account switch, no account, or the last subscriber leaving |
 | `watchField(field)` | Watch a field across account switches |
 | `watchItem(field, key)` | Watch a map item across account switches |
 | `watchItemIds(field)` | Watch map item IDs across account switches |
