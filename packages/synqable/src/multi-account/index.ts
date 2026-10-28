@@ -8,6 +8,8 @@
 import type {
 	Schema,
 	SyncableStore,
+	StoreWriter,
+	StoreUnavailableReason,
 	Readable,
 	StoreLifecycleState,
 	StorageStatus,
@@ -27,6 +29,7 @@ import type {
 	MultiAccountStore,
 } from './types.js';
 import {getAddress, getPrivateKey} from './types.js';
+import {StoreUnavailableError} from '../main/types.js';
 
 // Re-export types
 export type {
@@ -125,6 +128,10 @@ export function createMultiAccountStore<S extends Schema>(
 	let currentStore: SyncableStore<S> | null = null;
 	let current: Account | AccountWithSigner | undefined;
 	let unsubscribeAccount: (() => void) | undefined;
+
+	// Why each store this manager stopped was stopped, so that ready() can tell
+	// an account switch from a teardown (the store itself only knows it was stopped).
+	const endReasons = new WeakMap<SyncableStore<S>, StoreUnavailableReason>();
 
 	// Subscribers for store changes
 	const subscribers = new Set<(store: SyncableStore<S> | null) => void>();
@@ -241,7 +248,10 @@ export function createMultiAccountStore<S extends Schema>(
 		}
 
 		// Stop and cleanup previous store
-		currentStore?.stop();
+		if (currentStore) {
+			endReasons.set(currentStore, 'account-switched');
+			currentStore.stop();
+		}
 
 		current = value;
 
@@ -301,7 +311,10 @@ export function createMultiAccountStore<S extends Schema>(
 			derived.cleanup();
 		}
 
-		currentStore?.stop();
+		if (currentStore) {
+			endReasons.set(currentStore, 'stopped');
+			currentStore.stop();
+		}
 		currentStore = null;
 		current = undefined;
 	}
@@ -352,6 +365,36 @@ export function createMultiAccountStore<S extends Schema>(
 		return createDerivedReadable((store) => store.watchItemIds(field), []);
 	}
 
+	function writer(): StoreWriter<S> | undefined {
+		return currentStore?.writer();
+	}
+
+	function ready(): Promise<StoreWriter<S>> {
+		const store = currentStore;
+		if (!store) {
+			return Promise.reject(
+				new StoreUnavailableError(
+					'no-account',
+					'No current store: no account is connected, or the multi-account store has no subscriber',
+				),
+			);
+		}
+		return store.ready().catch((error: unknown) => {
+			if (
+				error instanceof StoreUnavailableError &&
+				error.reason === 'stopped' &&
+				endReasons.get(store) === 'account-switched'
+			) {
+				throw new StoreUnavailableError(
+					'account-switched',
+					`The account switched away from ${store.account} before its store loaded`,
+					{account: store.account, cause: error},
+				);
+			}
+			throw error;
+		});
+	}
+
 	return {
 		subscribe(callback: (store: SyncableStore<S> | null) => void): () => void {
 			// Start lifecycle if this is the first subscriber overall
@@ -388,5 +431,8 @@ export function createMultiAccountStore<S extends Schema>(
 		watchField,
 		watchItem,
 		watchItemIds,
+
+		writer,
+		ready,
 	};
 }

@@ -17,10 +17,12 @@ import type {
 	MutationOptions,
 	SyncableStoreConfig,
 	SyncableStore,
+	StoreWriter,
 	Readable,
 	MapField,
 	RemovalMutationOptions,
 } from './types.js';
+import {StoreUnavailableError} from './types.js';
 
 import type {SyncStatus, StoreEventsWithSync} from '../sync/types.js';
 
@@ -75,6 +77,55 @@ export function createSyncableStore<S extends Schema>(
 		loadError: null,
 	};
 	let internalStorage: InternalStorage<S> | null = null;
+
+	// Terminal: set by stop(). Revokes the write handle and cancels a load in flight.
+	let stopped = false;
+
+	// Pending ready() calls, settled on ready, on a load error, or on stop().
+	const readyWaiters: {
+		resolve: (writer: StoreWriter<S>) => void;
+		reject: (error: StoreUnavailableError) => void;
+	}[] = [];
+
+	function stoppedError(): StoreUnavailableError {
+		return new StoreUnavailableError('stopped', `Store for ${account} was stopped`, {account});
+	}
+
+	function loadFailedError(cause: Error): StoreUnavailableError {
+		return new StoreUnavailableError(
+			'load-failed',
+			`Store for ${account} failed to load: ${cause.message}`,
+			{account, cause},
+		);
+	}
+
+	function settleReadyWaiters(
+		outcome: {writer: StoreWriter<S>} | {error: StoreUnavailableError},
+	): void {
+		const waiters = readyWaiters.splice(0, readyWaiters.length);
+		for (const waiter of waiters) {
+			if ('writer' in outcome) {
+				waiter.resolve(outcome.writer);
+			} else {
+				waiter.reject(outcome.error);
+			}
+		}
+	}
+
+	/**
+	 * A handle given out before stop() must not write into a store nobody reads:
+	 * the save and the push would still fire, and a fresh store for the same
+	 * account would overwrite the write with its next save, silently.
+	 */
+	function assertNotRevoked(): void {
+		if (stopped) {
+			throw new StoreUnavailableError(
+				'stopped',
+				`Store for ${account} was stopped; its write handle is revoked`,
+				{account},
+			);
+		}
+	}
 
 	// Storage state - simplified with just boolean flags
 	let storageDebounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -147,7 +198,11 @@ export function createSyncableStore<S extends Schema>(
 		| {type: 'saved'; timestamp: number}
 		| {type: 'failed'; error: Error};
 
-	type StateEventData = {type: 'idle'; error?: Error} | {type: 'loading'} | {type: 'ready'};
+	type StateEventData =
+		| {type: 'idle'}
+		| {type: 'loading'}
+		| {type: 'ready'}
+		| {type: 'error'; error: Error};
 
 	function emitSyncEvent(event: SyncEventData): void {
 		(emitter.emit as (eventName: '$store:sync', data: SyncEventData) => void)('$store:sync', event);
@@ -206,6 +261,14 @@ export function createSyncableStore<S extends Schema>(
 				loadError: null,
 			};
 		}
+		if (asyncState.status === 'error') {
+			return {
+				status: 'error',
+				account: asyncState.account,
+				isLoading: false,
+				loadError: asyncState.loadError,
+			};
+		}
 		if (asyncState.isLoading) {
 			return {
 				status: 'loading',
@@ -218,7 +281,7 @@ export function createSyncableStore<S extends Schema>(
 			status: 'idle',
 			account: asyncState.account,
 			isLoading: false,
-			loadError: asyncState.loadError,
+			loadError: null,
 		};
 	}
 
@@ -566,6 +629,9 @@ export function createSyncableStore<S extends Schema>(
 
 	async function load(): Promise<void> {
 		logger.info('load', {storageKey, account});
+		if (stopped) {
+			throw stoppedError();
+		}
 		if (asyncState.status !== 'idle' || asyncState.isLoading) {
 			logger.warn('load:skip:alreadyLoadedOrLoading', {
 				storageKey,
@@ -582,6 +648,15 @@ export function createSyncableStore<S extends Schema>(
 		try {
 			logger.debug('load:calling:storageAdapter.load', {storageKey});
 			const localData = await storageAdapter.load(storageKey);
+
+			// Stopped while loading (an account switch, a teardown): do not become
+			// ready, and do not install listeners that stop() has already torn down.
+			if (stopped) {
+				logger.debug('load:abort:stopped', {storageKey});
+				asyncState = {status: 'idle', account, isLoading: false, loadError: null};
+				emitStateEvent({type: 'idle'});
+				return;
+			}
 			logger.debug('load:storageAdapter.load:result', {
 				storageKey,
 				hasLocalData: !!localData,
@@ -638,6 +713,7 @@ export function createSyncableStore<S extends Schema>(
 			};
 			emitStateEvent({type: 'ready'});
 			logger.info('load:ready', {storageKey, account});
+			settleReadyWaiters({writer: writerHandle});
 
 			if (syncAdapter) {
 				logger.debug('load:triggerSync', {storageKey});
@@ -649,19 +725,30 @@ export function createSyncableStore<S extends Schema>(
 			logger.debug('load:setupComplete', {storageKey});
 		} catch (error) {
 			logger.error('load:error', {storageKey, error});
+			if (stopped) {
+				asyncState = {status: 'idle', account, isLoading: false, loadError: null};
+				emitStateEvent({type: 'idle'});
+				return;
+			}
 			const loadError = error as Error;
-			asyncState = {status: 'idle', account, isLoading: false, loadError};
-			emitStateEvent({type: 'idle', error: loadError});
+			asyncState = {status: 'error', account, isLoading: false, loadError};
+			emitStateEvent({type: 'error', error: loadError});
+			settleReadyWaiters({error: loadFailedError(loadError)});
 		}
 	}
 
-	const store: SyncableStore<S> = {
-		get() {
-			return asyncState as DeepReadonly<AsyncState<DataOf<S>>>;
-		},
-
+	// The write handle. Created once; only handed out while the store is ready.
+	const writerHandle: StoreWriter<S> = {
 		get account() {
 			return account;
+		},
+
+		get data() {
+			assertNotRevoked();
+			if (asyncState.status !== 'ready') {
+				throw new Error('Store is not ready');
+			}
+			return asyncState.data as DeepReadonly<DataOf<S>>;
 		},
 
 		set<K extends WholeFieldKeys<S>>(
@@ -669,6 +756,7 @@ export function createSyncableStore<S extends Schema>(
 			value: DataOf<S>[K],
 			options?: MutationOptions,
 		): void {
+			assertNotRevoked();
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
@@ -692,6 +780,7 @@ export function createSyncableStore<S extends Schema>(
 			value: DeepPartial<ExtractRecord<S[K]>>,
 			options?: MutationOptions,
 		): void {
+			assertNotRevoked();
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
@@ -721,6 +810,7 @@ export function createSyncableStore<S extends Schema>(
 			value: ExtractMapItem<S[K]>,
 			options: {deleteAt: number; immediate?: boolean},
 		): void {
+			assertNotRevoked();
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
@@ -761,6 +851,7 @@ export function createSyncableStore<S extends Schema>(
 			value: ExtractMapItem<S[K]>,
 			options?: MutationOptions,
 		): void {
+			assertNotRevoked();
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
@@ -804,6 +895,7 @@ export function createSyncableStore<S extends Schema>(
 			value: DeepPartial<ExtractMapItem<S[K]>>,
 			options?: MutationOptions,
 		): void {
+			assertNotRevoked();
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
@@ -848,6 +940,7 @@ export function createSyncableStore<S extends Schema>(
 			updateFn: (current: DataOf<S>[K]) => DataOf<S>[K],
 			options?: MutationOptions,
 		): void {
+			assertNotRevoked();
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
@@ -885,6 +978,7 @@ export function createSyncableStore<S extends Schema>(
 			updateFn: (current: ExtractMapItem<S[K]>) => ExtractMapItem<S[K]>,
 			options?: MutationOptions,
 		): void {
+			assertNotRevoked();
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
@@ -940,6 +1034,7 @@ export function createSyncableStore<S extends Schema>(
 			key: string,
 			options?: RemovalMutationOptions,
 		): void {
+			assertNotRevoked();
 			if (asyncState.status !== 'ready' || !internalStorage) {
 				throw new Error('Store is not ready');
 			}
@@ -981,6 +1076,35 @@ export function createSyncableStore<S extends Schema>(
 			scheduleStorageSave(options?.immediate);
 			markDirty();
 		},
+	};
+
+	const store: SyncableStore<S> = {
+		get() {
+			return asyncState as DeepReadonly<AsyncState<DataOf<S>>>;
+		},
+
+		get account() {
+			return account;
+		},
+
+		writer(): StoreWriter<S> | undefined {
+			return !stopped && asyncState.status === 'ready' ? writerHandle : undefined;
+		},
+
+		ready(): Promise<StoreWriter<S>> {
+			if (stopped) {
+				return Promise.reject(stoppedError());
+			}
+			if (asyncState.status === 'ready') {
+				return Promise.resolve(writerHandle);
+			}
+			if (asyncState.status === 'error') {
+				return Promise.reject(loadFailedError(asyncState.loadError));
+			}
+			return new Promise((resolve, reject) => {
+				readyWaiters.push({resolve, reject});
+			});
+		},
 
 		on: emitter.on.bind(emitter),
 		off: emitter.off.bind(emitter),
@@ -992,6 +1116,9 @@ export function createSyncableStore<S extends Schema>(
 		load,
 
 		stop(): void {
+			stopped = true;
+			settleReadyWaiters({error: stoppedError()});
+
 			unwatchStorage?.();
 			unwatchStorage = undefined;
 
@@ -1215,7 +1342,10 @@ export function createSyncableStore<S extends Schema>(
 		},
 
 		retryLoad(): void {
-			if (asyncState.status !== 'idle' || !asyncState.loadError) {
+			if (stopped) {
+				throw stoppedError();
+			}
+			if (asyncState.status !== 'error') {
 				throw new Error('Can only retry when load has failed');
 			}
 

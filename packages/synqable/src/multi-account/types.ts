@@ -7,6 +7,7 @@
 import type {
 	Schema,
 	SyncableStore,
+	StoreWriter,
 	Readable,
 	StoreLifecycleState,
 	StorageStatus,
@@ -118,6 +119,29 @@ export interface MultiAccountStore<S extends Schema> {
 	 * This is intentional for async operation safety.
 	 */
 	get(): SyncableStore<S> | null;
+
+	// ============ Writes ============
+
+	/**
+	 * The current account's write handle if its store is loaded now, `undefined`
+	 * otherwise (no account, loading, failed, stopped). For a writer with its own fallback.
+	 *
+	 * The handle is bound to the account it was obtained for: after a switch it
+	 * throws a `StoreUnavailableError` (`reason: 'stopped'`) instead of writing.
+	 */
+	writer(): StoreWriter<S> | undefined;
+
+	/**
+	 * Resolves to the current account's write handle once its store has loaded.
+	 *
+	 * Rejects with a `StoreUnavailableError`:
+	 * - `reason: 'no-account'` at once if there is no current store (no account
+	 *   connected, or no subscriber, so nothing is loading);
+	 * - `reason: 'account-switched'` if the account changes or disconnects before it loads;
+	 * - `reason: 'stopped'` if the last subscriber leaves before it loads;
+	 * - `reason: 'load-failed'` if its load fails, the load error as `cause`.
+	 */
+	ready(): Promise<StoreWriter<S>>;
 
 	// ============ Renamed ============
 

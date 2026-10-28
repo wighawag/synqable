@@ -279,7 +279,7 @@ describe('preserved: store API', () => {
 		store.on('settings:changed', (v) => seen.push(v));
 
 		clock = 2000;
-		store.set('settings', {theme: 'light', volume: 0.9});
+		store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 		const state = store.get();
 		expect(state.status).toBe('ready');
@@ -306,7 +306,7 @@ describe('preserved: store API', () => {
 		const unsub = store.watchField('settings').subscribe((v) => seen.push(v));
 
 		clock = 2000;
-		store.set('settings', {theme: 'light', volume: 0.9});
+		store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 		expect(seen).toStrictEqual([
 			{theme: 'dark', volume: 0.5},

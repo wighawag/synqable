@@ -87,7 +87,7 @@ describe('record fields - mutation stamping', () => {
 		const store = await makeStore();
 
 		clock = 2000;
-		store.update('settings', {theme: 'light'}, {immediate: true});
+		store.writer()!.update('settings', {theme: 'light'}, {immediate: true});
 		await store.flush();
 
 		expect(savedTimestamps()).toStrictEqual({theme: 2000});
@@ -99,9 +99,9 @@ describe('record fields - mutation stamping', () => {
 		const store = await makeStore();
 
 		clock = 2000;
-		store.update('settings', {theme: 'light'}, {immediate: true});
+		store.writer()!.update('settings', {theme: 'light'}, {immediate: true});
 		clock = 3000;
-		store.update('settings', {fontSize: 20}, {immediate: true});
+		store.writer()!.update('settings', {fontSize: 20}, {immediate: true});
 		await store.flush();
 
 		expect(savedTimestamps()).toStrictEqual({theme: 2000, fontSize: 3000});
@@ -113,7 +113,7 @@ describe('record fields - mutation stamping', () => {
 		const store = await makeStore();
 
 		clock = 3000;
-		store.set('settings', {theme: 'x', fontSize: 20, darkMode: true}, {immediate: true});
+		store.writer()!.set('settings', {theme: 'x', fontSize: 20, darkMode: true}, {immediate: true});
 		await store.flush();
 
 		expect(savedTimestamps()).toStrictEqual({theme: 3000, fontSize: 3000, darkMode: 3000});
@@ -125,7 +125,7 @@ describe('record fields - mutation stamping', () => {
 		const store = await makeStore();
 
 		clock = 4000;
-		store.patch('settings', (current) => ({...current, fontSize: 99}), {immediate: true});
+		store.writer()!.patch('settings', (current) => ({...current, fontSize: 99}), {immediate: true});
 		await store.flush();
 
 		expect(savedTimestamps()).toStrictEqual({fontSize: 4000});
@@ -137,7 +137,7 @@ describe('record fields - mutation stamping', () => {
 		const store = await makeStore();
 
 		clock = 5000;
-		store.update('settings', {darkMode: false, fontSize: 0}, {immediate: true});
+		store.writer()!.update('settings', {darkMode: false, fontSize: 0}, {immediate: true});
 		await store.flush();
 
 		expect(savedTimestamps()).toStrictEqual({darkMode: 5000, fontSize: 5000});
@@ -152,7 +152,7 @@ describe('record fields - mutation stamping', () => {
 		store.on('settings:changed', (v) => seen.push(v));
 
 		clock = 2000;
-		store.update('settings', {theme: 'light'});
+		store.writer()!.update('settings', {theme: 'light'});
 
 		expect(seen).toStrictEqual([{theme: 'light', fontSize: 12, darkMode: false}]);
 
@@ -166,7 +166,7 @@ describe('record fields - mutation stamping', () => {
 		const unsub = store.watchField('settings').subscribe((v) => seen.push(v));
 
 		clock = 2000;
-		store.update('settings', {fontSize: 20});
+		store.writer()!.update('settings', {fontSize: 20});
 
 		expect(seen).toStrictEqual([
 			{theme: 'dark', fontSize: 12, darkMode: false},
@@ -216,13 +216,13 @@ describe('record fields - concurrent devices', () => {
 
 		let clockA = 2000;
 		const deviceA = await makeDevice('a', () => clockA);
-		deviceA.update('settings', {theme: 'light'}, {immediate: true});
+		deviceA.writer()!.update('settings', {theme: 'light'}, {immediate: true});
 		await deviceA.syncNow();
 
 		let clockB = 3000;
 		const deviceB = await makeDevice('b', () => clockB);
 		await deviceB.syncNow();
-		deviceB.update('settings', {fontSize: 32}, {immediate: true});
+		deviceB.writer()!.update('settings', {fontSize: 32}, {immediate: true});
 		await deviceB.syncNow();
 
 		// Device A picks up device B's change without losing its own.
@@ -264,7 +264,7 @@ describe('record fields - cleanup', () => {
 		});
 		await first.load();
 		clock = 2000;
-		first.update('settings', {theme: 'light'}, {immediate: true});
+		first.writer()!.update('settings', {theme: 'light'}, {immediate: true});
 		await first.flush();
 		first.stop();
 
@@ -278,7 +278,7 @@ describe('record fields - cleanup', () => {
 		});
 		await second.load();
 		clock = 3000;
-		second.update('settings', {fontSize: 20}, {immediate: true});
+		second.writer()!.update('settings', {fontSize: 20}, {immediate: true});
 		await second.flush();
 
 		expect(storage.data.get('k')?.$itemTimestamps.settings).toStrictEqual({
@@ -305,7 +305,7 @@ describe('record fields - cleanup', () => {
 		await store.load();
 
 		clock = 2000;
-		store.set('settings', {theme: 'x', fontSize: 1, darkMode: true}, {immediate: true});
+		store.writer()!.set('settings', {theme: 'x', fontSize: 1, darkMode: true}, {immediate: true});
 		await store.flush();
 
 		// Note: $timestamps is typed over value-field keys only, so `settings` has no
@@ -329,10 +329,10 @@ describe('record fields - type contracts', () => {
 
 		// @ts-expect-error update() is deliberately unavailable on value fields:
 		// a partial update cannot merge independently there.
-		const _bad = () => store.update('atomic', 'nope');
+		const _bad = () => store.writer()!.update('atomic', 'nope');
 
 		// Available on record fields.
-		const _good = () => store.update('struct', {a: 1});
+		const _good = () => store.writer()!.update('struct', {a: 1});
 
 		expect(typeof _bad).toBe('function');
 		expect(typeof _good).toBe('function');

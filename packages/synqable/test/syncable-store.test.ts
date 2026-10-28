@@ -134,7 +134,7 @@ describe('createSyncableStore', () => {
 		});
 
 		await store.load();
-		store.set('settings', {theme: 'light', volume: 0.8});
+		store.writer()!.set('settings', {theme: 'light', volume: 0.8});
 
 		const state = store.get();
 		if (state.status === 'ready') {
@@ -155,7 +155,9 @@ describe('createSyncableStore', () => {
 		});
 
 		await store.load();
-		store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+		store
+			.writer()!
+			.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 		const state = store.get();
 		if (state.status === 'ready') {
@@ -178,9 +180,11 @@ describe('createSyncableStore', () => {
 		});
 
 		await store.load();
-		store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+		store
+			.writer()!
+			.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 		clock = 2000; // Advance clock
-		store.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
+		store.writer()!.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
 		const state = store.get();
 		if (state.status === 'ready') {
@@ -202,8 +206,10 @@ describe('createSyncableStore', () => {
 		});
 
 		await store.load();
-		store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
-		store.removeItem('operations', 'op-1');
+		store
+			.writer()!
+			.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+		store.writer()!.removeItem('operations', 'op-1');
 
 		const state = store.get();
 		if (state.status === 'ready') {
@@ -224,7 +230,7 @@ describe('createSyncableStore', () => {
 
 		await store.load();
 
-		expect(() => store.removeItem('operations', 'non-existent')).toThrow(
+		expect(() => store.writer()!.removeItem('operations', 'non-existent')).toThrow(
 			'Item non-existent does not exist in operations',
 		);
 	});
@@ -241,11 +247,11 @@ describe('createSyncableStore', () => {
 		await store.load();
 
 		expect(() => {
-			store.setItem('operations', 'non-existent', {tx: '0x', status: 'test'});
+			store.writer()!.setItem('operations', 'non-existent', {tx: '0x', status: 'test'});
 		}).toThrow('Item non-existent does not exist in operations');
 	});
 
-	it('throws when modifying before load', () => {
+	it('has no write handle before load', () => {
 		const store = createSyncableStore({
 			schema,
 			account: '0x1234567890123456789012345678901234567890',
@@ -254,9 +260,7 @@ describe('createSyncableStore', () => {
 			clock: () => clock,
 		});
 
-		expect(() => {
-			store.set('settings', {theme: 'light', volume: 0.9});
-		}).toThrow('Store is not ready');
+		expect(store.writer()).toBeUndefined();
 	});
 
 	it('persists data to storage', async () => {
@@ -269,7 +273,7 @@ describe('createSyncableStore', () => {
 		});
 
 		await store.load();
-		store.set('settings', {theme: 'light', volume: 0.9});
+		store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 		await store.flush();
 
 		// Check storage
@@ -344,7 +348,7 @@ describe('createSyncableStore', () => {
 				receivedValue = value;
 			});
 
-			store.set('settings', {theme: 'light', volume: 0.9});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 			expect(receivedValue).toEqual({theme: 'light', volume: 0.9});
 		});
@@ -367,7 +371,9 @@ describe('createSyncableStore', () => {
 				receivedEvent = event;
 			});
 
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			expect(receivedEvent?.key).toBe('op-1');
 			expect(receivedEvent?.item.tx).toBe('0xabc');
@@ -385,7 +391,9 @@ describe('createSyncableStore', () => {
 
 			await store.load();
 
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let receivedEvent:
 				| {key: string; item: {tx: string; status: string; deleteAt: number}}
@@ -394,7 +402,7 @@ describe('createSyncableStore', () => {
 				receivedEvent = event;
 			});
 
-			store.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
+			store.writer()!.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
 			expect(receivedEvent?.key).toBe('op-1');
 			expect(receivedEvent?.item.status).toBe('confirmed');
@@ -411,7 +419,9 @@ describe('createSyncableStore', () => {
 
 			await store.load();
 
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let receivedEvent:
 				| {key: string; item: {tx: string; status: string; deleteAt: number}}
@@ -420,7 +430,7 @@ describe('createSyncableStore', () => {
 				receivedEvent = event;
 			});
 
-			store.removeItem('operations', 'op-1');
+			store.writer()!.removeItem('operations', 'op-1');
 
 			expect(receivedEvent?.key).toBe('op-1');
 		});
@@ -459,7 +469,7 @@ describe('createSyncableStore', () => {
 				receivedValue = value;
 			});
 
-			store.patch('settings', (s) => ({...s, volume: 0.9}));
+			store.writer()!.patch('settings', (s) => ({...s, volume: 0.9}));
 
 			expect(receivedValue?.volume).toBe(0.9);
 			expect(receivedValue?.theme).toBe('dark'); // original value preserved
@@ -496,7 +506,9 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add an item first
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Get item store and subscribe
 			let itemValue: {tx: string; status: string; deleteAt: number} | undefined;
@@ -529,7 +541,9 @@ describe('createSyncableStore', () => {
 			expect(itemValue).toBeUndefined();
 
 			// Add the item
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Should be updated
 			expect(itemValue).toBeDefined();
@@ -548,7 +562,9 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add an item first
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Subscribe to item store
 			let itemValue: {tx: string; status: string; deleteAt: number} | undefined;
@@ -559,7 +575,7 @@ describe('createSyncableStore', () => {
 
 			// Update the item
 			clock = 2000;
-			store.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
+			store.writer()!.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
 			// Should be updated
 			expect(itemValue?.status).toBe('confirmed');
@@ -577,7 +593,9 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add an item first
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Subscribe to item store
 			let itemValue: {tx: string; status: string; deleteAt: number} | undefined;
@@ -587,7 +605,7 @@ describe('createSyncableStore', () => {
 			expect(itemValue).toBeDefined();
 
 			// Remove the item
-			store.removeItem('operations', 'op-1');
+			store.writer()!.removeItem('operations', 'op-1');
 
 			// Should be undefined
 			expect(itemValue).toBeUndefined();
@@ -690,7 +708,7 @@ describe('createSyncableStore', () => {
 			});
 
 			// Trigger sync by making a change
-			store.set('settings', {theme: 'light', volume: 0.8});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.8});
 
 			// Wait for sync to start
 			await new Promise((r) => setTimeout(r, 50));
@@ -750,7 +768,7 @@ describe('createSyncableStore', () => {
 			});
 
 			// Trigger storage save by making a change
-			store.set('settings', {theme: 'light', volume: 0.8});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.8});
 
 			// Give it time to start saving
 			await new Promise((r) => setTimeout(r, 10));
@@ -825,7 +843,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Trigger a save - this will be the first save and will be slow
-			store.set('settings', {theme: 'light', volume: 0.8});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.8});
 
 			// Wait a moment for the save to start
 			await new Promise((r) => setTimeout(r, 10));
@@ -927,7 +945,7 @@ describe('createSyncableStore', () => {
 			pushCallCount = 0; // Reset after initial sync
 
 			// Make a change (this would normally start a 5 second debounce)
-			store.set('settings', {theme: 'light', volume: 0.8});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.8});
 
 			// Sync hasn't started yet (debounce not elapsed)
 			expect(pushCallCount).toBe(0);
@@ -1107,7 +1125,7 @@ describe('createSyncableStore', () => {
 				await store.load();
 
 				// Make a local change so there's data to push
-				store.set('settings', {theme: 'custom', volume: 0.9});
+				store.writer()!.set('settings', {theme: 'custom', volume: 0.9});
 
 				const initialPushCount = pushCallCount;
 
@@ -1400,7 +1418,7 @@ describe('createSyncableStore', () => {
 			expect(syncStatusValue?.hasPendingSync).toBe(false);
 
 			// Make a change
-			store.set('settings', {theme: 'light', volume: 0.8});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.8});
 
 			// Should now be true - we have pending changes
 			expect(syncStatusValue?.hasPendingSync).toBe(true);
@@ -1438,7 +1456,7 @@ describe('createSyncableStore', () => {
 			store.syncStatus$.subscribe((s) => (syncStatusValue = s));
 
 			// Make a change
-			store.set('settings', {theme: 'light', volume: 0.8});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.8});
 			expect(syncStatusValue?.hasPendingSync).toBe(true);
 
 			// Wait for sync to start
@@ -1489,7 +1507,7 @@ describe('createSyncableStore', () => {
 			pendingHistory.length = 0;
 
 			// Make a change - should notify with true
-			store.set('settings', {theme: 'light', volume: 0.8});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.8});
 
 			// Should have notified with true
 			expect(pendingHistory).toContain(true);
@@ -1543,7 +1561,7 @@ describe('createSyncableStore', () => {
 			// Clear any events from the initial setup
 			events.length = 0;
 
-			store.set('settings', {theme: 'light', volume: 0.8});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.8});
 
 			// State event should NOT be emitted on data modifications
 			// (use field-level events like 'settings:changed' instead)
@@ -1653,8 +1671,8 @@ describe('createSyncableStore', () => {
 
 			await store.load();
 
-			// Store should be idle with loadError set
-			expect(store.get().status).toBe('idle');
+			// Store should be in the error state with loadError set
+			expect(store.get().status).toBe('error');
 			expect(store.get().isLoading).toBe(false);
 			expect(store.get().loadError).toBeDefined();
 			expect(store.get().loadError?.message).toBe('Missing migration for version 2');
@@ -1800,7 +1818,7 @@ describe('createSyncableStore', () => {
 			fieldStore.subscribe((v) => (fieldValue = v));
 
 			// Change the field
-			store.set('settings', {theme: 'light', volume: 0.9});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 			expect(fieldValue?.theme).toBe('light');
 			expect(fieldValue?.volume).toBe(0.9);
@@ -1822,7 +1840,7 @@ describe('createSyncableStore', () => {
 			fieldStore.subscribe((v) => (fieldValue = v));
 
 			// Patch the field
-			store.patch('settings', (s) => ({...s, volume: 0.9}));
+			store.writer()!.patch('settings', (s) => ({...s, volume: 0.9}));
 
 			expect(fieldValue?.theme).toBe('dark'); // unchanged
 			expect(fieldValue?.volume).toBe(0.9); // patched
@@ -1840,7 +1858,9 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add some items first
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let fieldValue: Record<string, {tx: string; status: string; deleteAt: number}> | undefined;
 			const fieldStore = store.watchField('operations');
@@ -1870,7 +1890,9 @@ describe('createSyncableStore', () => {
 			expect(Object.keys(fieldValue || {}).length).toBe(0);
 
 			// Add an item
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Should now have the item
 			expect(Object.keys(fieldValue || {}).length).toBe(1);
@@ -1889,7 +1911,9 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add item first
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let fieldValue: Record<string, {tx: string; status: string; deleteAt: number}> | undefined;
 			const fieldStore = store.watchField('operations');
@@ -1899,7 +1923,7 @@ describe('createSyncableStore', () => {
 			expect(Object.keys(fieldValue || {}).length).toBe(1);
 
 			// Remove it
-			store.removeItem('operations', 'op-1');
+			store.writer()!.removeItem('operations', 'op-1');
 
 			// Should be empty
 			expect(Object.keys(fieldValue || {}).length).toBe(0);
@@ -1917,7 +1941,9 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add item first
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let subscribeCallCount = 0;
 			let lastValue: Record<string, {tx: string; status: string; deleteAt: number}> | undefined;
@@ -1932,7 +1958,7 @@ describe('createSyncableStore', () => {
 
 			// Update item
 			clock = 2000;
-			store.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
+			store.writer()!.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
 			// Should have triggered the field store with updated value
 			expect(subscribeCallCount).toBe(1);
@@ -1993,8 +2019,12 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add some items first
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
-			store.addItem('operations', 'op-2', {tx: '0xdef', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-2', {tx: '0xdef', status: 'pending'}, {deleteAt: 9999});
 
 			let ids: string[] | undefined;
 			const idsStore = store.watchItemIds('operations');
@@ -2023,7 +2053,9 @@ describe('createSyncableStore', () => {
 			expect(ids).toEqual([]);
 
 			// Add an item
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			// Should now have the ID
 			expect(ids).toEqual(['op-1']);
@@ -2041,7 +2073,9 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add item first
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let ids: string[] | undefined;
 			const idsStore = store.watchItemIds('operations');
@@ -2051,7 +2085,7 @@ describe('createSyncableStore', () => {
 			expect(ids).toEqual(['op-1']);
 
 			// Remove it
-			store.removeItem('operations', 'op-1');
+			store.writer()!.removeItem('operations', 'op-1');
 
 			// Should be empty
 			expect(ids).toEqual([]);
@@ -2069,7 +2103,9 @@ describe('createSyncableStore', () => {
 			await store.load();
 
 			// Add item first
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			let subscribeCallCount = 0;
 			const idsStore = store.watchItemIds('operations');
@@ -2082,7 +2118,7 @@ describe('createSyncableStore', () => {
 
 			// Update item
 			clock = 2000;
-			store.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
+			store.writer()!.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 
 			// Should NOT have triggered - IDs didn't change
 			expect(subscribeCallCount).toBe(0);
@@ -2155,7 +2191,7 @@ describe('createSyncableStore', () => {
 			subscriptionCallCount = 0;
 
 			// Make a change to value field
-			store.set('settings', {theme: 'light', volume: 0.8});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.8});
 
 			// Should NOT have triggered another subscription call
 			expect(subscriptionCallCount).toBe(0);
@@ -2182,16 +2218,18 @@ describe('createSyncableStore', () => {
 			subscriptionCallCount = 0;
 
 			// Add item
-			store.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store
+				.writer()!
+				.addItem('operations', 'op-1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 			expect(subscriptionCallCount).toBe(0);
 
 			// Update item
 			clock = 2000;
-			store.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
+			store.writer()!.setItem('operations', 'op-1', {tx: '0xabc', status: 'confirmed'});
 			expect(subscriptionCallCount).toBe(0);
 
 			// Remove item
-			store.removeItem('operations', 'op-1');
+			store.writer()!.removeItem('operations', 'op-1');
 			expect(subscriptionCallCount).toBe(0);
 		});
 	});
@@ -2353,7 +2391,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 			const initialPushCount = pushCount.value;
 
-			store.set('settings', {theme: 'light', volume: 0.9});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for debounce
 			await new Promise((r) => setTimeout(r, 50));
@@ -2392,7 +2430,7 @@ describe('createSyncableStore', () => {
 			const syncEvents: {type: string}[] = [];
 			store.on('$store:sync', (e) => syncEvents.push(e));
 
-			store.set('settings', {theme: 'light', volume: 0.9});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for debounce to trigger and sync to start
 			await new Promise((r) => setTimeout(r, 30));
@@ -2432,7 +2470,7 @@ describe('createSyncableStore', () => {
 			const syncEvents: {type: string; timestamp?: number}[] = [];
 			store.on('$store:sync', (e) => syncEvents.push(e));
 
-			store.set('settings', {theme: 'light', volume: 0.9});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for debounce and sync to start
 			await new Promise((r) => setTimeout(r, 30));
@@ -2467,7 +2505,7 @@ describe('createSyncableStore', () => {
 			const syncEvents: {type: string; error?: Error}[] = [];
 			store.on('$store:sync', (e) => syncEvents.push(e));
 
-			store.set('settings', {theme: 'light', volume: 0.9});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for debounce and sync to fail
 			await new Promise((r) => setTimeout(r, 50));
@@ -2514,7 +2552,7 @@ describe('createSyncableStore', () => {
 			pushResolve?.(); // Complete initial sync
 			await new Promise((r) => setTimeout(r, 20));
 
-			store.set('settings', {theme: 'light', volume: 0.9});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for debounce and sync to start
 			await new Promise((r) => setTimeout(r, 30));
@@ -2551,7 +2589,7 @@ describe('createSyncableStore', () => {
 
 			await store.load();
 
-			store.set('settings', {theme: 'light', volume: 0.9});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for debounce and sync to fail
 			await new Promise((r) => setTimeout(r, 50));
@@ -2592,7 +2630,7 @@ describe('createSyncableStore', () => {
 			// Initial lastSyncedAt after first sync should be set
 			const initialSyncedAt = syncStatus?.lastSyncedAt;
 
-			store.set('settings', {theme: 'light', volume: 0.9});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for sync to start
 			await new Promise((r) => setTimeout(r, 30));
@@ -2643,7 +2681,7 @@ describe('createSyncableStore', () => {
 
 			// Make 5 rapid changes
 			for (let i = 0; i < 5; i++) {
-				store.set('settings', {theme: `theme-${i}`, volume: i / 10});
+				store.writer()!.set('settings', {theme: `theme-${i}`, volume: i / 10});
 			}
 
 			// Wait for debounce
@@ -2689,7 +2727,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 			attempts = 0; // Reset after initial sync
 
-			store.set('settings', {theme: 'light', volume: 0.9});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for retries (debounce + retries with backoff)
 			await new Promise((r) => setTimeout(r, 300));
@@ -2728,7 +2766,7 @@ describe('createSyncableStore', () => {
 			const syncEvents: {type: string; error?: Error}[] = [];
 			store.on('$store:sync', (e) => syncEvents.push(e));
 
-			store.set('settings', {theme: 'light', volume: 0.9});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for all retries
 			await new Promise((r) => setTimeout(r, 300));
@@ -2772,7 +2810,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 			callTimes.length = 0; // Clear after initial sync
 
-			store.set('settings', {theme: 'light', volume: 0.9});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 			// Wait for all retries (debounce + 3 retries with increasing backoff)
 			await new Promise((r) => setTimeout(r, 500));
@@ -2822,7 +2860,7 @@ describe('createSyncableStore', () => {
 
 			const initialPushCount = pushCount.value;
 
-			store.set('settings', {theme: 'light', volume: 0.9});
+			store.writer()!.set('settings', {theme: 'light', volume: 0.9});
 
 			// Stop before debounce fires (debounce is 100ms)
 			await new Promise((r) => setTimeout(r, 20));
@@ -2874,9 +2912,9 @@ describe('createSyncableStore', () => {
 			saveCallCount = 0; // Reset after load
 
 			// Rapid mutations
-			store.set('settings', {theme: 'value1', volume: 0.1});
-			store.set('settings', {theme: 'value2', volume: 0.2});
-			store.set('settings', {theme: 'value3', volume: 0.3});
+			store.writer()!.set('settings', {theme: 'value1', volume: 0.1});
+			store.writer()!.set('settings', {theme: 'value2', volume: 0.2});
+			store.writer()!.set('settings', {theme: 'value3', volume: 0.3});
 
 			// Wait for debounce
 			await new Promise((r) => setTimeout(r, 100));
@@ -2923,8 +2961,10 @@ describe('createSyncableStore', () => {
 			await store.load();
 			saveCallCount = 0; // Reset after load
 
-			store.set('settings', {theme: 'newTheme', volume: 0.9});
-			store.addItem('operations', 'op1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
+			store.writer()!.set('settings', {theme: 'newTheme', volume: 0.9});
+			store
+				.writer()!
+				.addItem('operations', 'op1', {tx: '0xabc', status: 'pending'}, {deleteAt: 9999});
 
 			await new Promise((r) => setTimeout(r, 100));
 			await store.flush();
@@ -2974,13 +3014,13 @@ describe('createSyncableStore', () => {
 			saveCallCount = 0;
 
 			// First save starts immediately
-			store.set('settings', {theme: 'value1', volume: 0.1});
+			store.writer()!.set('settings', {theme: 'value1', volume: 0.1});
 
 			// Wait for save to start
 			await new Promise((r) => setTimeout(r, 20));
 
 			// This should queue while first is in progress (uses internalStorage reference)
-			store.set('settings', {theme: 'value2', volume: 0.2});
+			store.writer()!.set('settings', {theme: 'value2', volume: 0.2});
 
 			// Complete first save - but it will save latest state (value2)
 			// because we use internalStorage reference directly
@@ -3034,7 +3074,7 @@ describe('createSyncableStore', () => {
 			saveCallCount = 0;
 
 			const startTime = Date.now();
-			store.set('settings', {theme: 'critical', volume: 0.9}, {immediate: true});
+			store.writer()!.set('settings', {theme: 'critical', volume: 0.9}, {immediate: true});
 			await store.flush();
 
 			// Should save immediately, not after 1000ms
@@ -3078,8 +3118,8 @@ describe('createSyncableStore', () => {
 			await store.load();
 			saveCallCount = 0;
 
-			store.set('settings', {theme: 'debounced', volume: 0.1});
-			store.set('settings', {theme: 'immediate', volume: 0.2}, {immediate: true});
+			store.writer()!.set('settings', {theme: 'debounced', volume: 0.1});
+			store.writer()!.set('settings', {theme: 'immediate', volume: 0.2}, {immediate: true});
 
 			await store.flush();
 
@@ -3122,25 +3162,29 @@ describe('createSyncableStore', () => {
 			await store.load();
 			saveCallCount = 0;
 
-			store.patch('settings', (s) => ({...s, volume: 0.9}), {immediate: true});
+			store.writer()!.patch('settings', (s) => ({...s, volume: 0.9}), {immediate: true});
 			await store.flush();
 			expect(saveCallCount).toBe(1);
 
-			store.addItem(
-				'operations',
-				'key1',
-				{tx: '0x123', status: 'pending'},
-				{deleteAt: 999, immediate: true},
-			);
+			store
+				.writer()!
+				.addItem(
+					'operations',
+					'key1',
+					{tx: '0x123', status: 'pending'},
+					{deleteAt: 999, immediate: true},
+				);
 			await store.flush();
 			expect(saveCallCount).toBe(2);
 
 			clock = 2000;
-			store.setItem('operations', 'key1', {tx: '0x123', status: 'confirmed'}, {immediate: true});
+			store
+				.writer()!
+				.setItem('operations', 'key1', {tx: '0x123', status: 'confirmed'}, {immediate: true});
 			await store.flush();
 			expect(saveCallCount).toBe(3);
 
-			store.removeItem('operations', 'key1', {immediate: true});
+			store.writer()!.removeItem('operations', 'key1', {immediate: true});
 			await store.flush();
 			expect(saveCallCount).toBe(4);
 		});
@@ -3281,7 +3325,7 @@ describe('createSyncableStore', () => {
 			await store.load();
 			saveCallCount = 0;
 
-			store.set('settings', {theme: 'test', volume: 0.5});
+			store.writer()!.set('settings', {theme: 'test', volume: 0.5});
 
 			// Flush should trigger immediate save
 			const startTime = Date.now();
@@ -3324,9 +3368,9 @@ describe('createSyncableStore', () => {
 
 			await store.load();
 
-			store.set('settings', {theme: 'a', volume: 0.1});
-			store.set('settings', {theme: 'b', volume: 0.2});
-			store.set('settings', {theme: 'c', volume: 0.3});
+			store.writer()!.set('settings', {theme: 'a', volume: 0.1});
+			store.writer()!.set('settings', {theme: 'b', volume: 0.2});
+			store.writer()!.set('settings', {theme: 'c', volume: 0.3});
 
 			// Without flush, would wait 10 seconds
 			await store.flush();

@@ -233,9 +233,13 @@ export type InternalStorage<S extends Schema> = {
 
 /**
  * State lifecycle events - emitted on async state transitions.
- * The 'idle' event includes an optional error when load failed.
+ * A failed load emits 'error' carrying the load error.
  */
-export type StateEvent = {type: 'idle'; error?: Error} | {type: 'loading'} | {type: 'ready'};
+export type StateEvent =
+	| {type: 'idle'}
+	| {type: 'loading'}
+	| {type: 'ready'}
+	| {type: 'error'; error: Error};
 
 // ============================================================================
 // Storage Status and Events
@@ -336,31 +340,63 @@ export type StoreEvents<S extends Schema> = BaseStoreEvents<S> & SchemaEvents<S>
 // ============================================================================
 
 /**
- * Base async state fields common to all states.
- */
-interface AsyncStateBase {
-	/** Whether the store is currently loading */
-	isLoading: boolean;
-	/** Load error if the last load attempt failed */
-	loadError: Error | null;
-}
-
-/**
  * Async state for store data.
- * Uses isLoading/loadError pattern consistent with storageStatus/syncStatus.
+ *
+ * - `idle`: not loaded (`isLoading` is true while a load is in flight).
+ * - `ready`: loaded, `data` available.
+ * - `error`: the last load failed; `loadError` holds the error. `retryLoad()` starts again.
  */
 export type AsyncState<T> =
-	| (AsyncStateBase & {status: 'idle'; account: `0x${string}` | undefined})
-	| (AsyncStateBase & {status: 'ready'; account: `0x${string}`; data: T});
+	| {status: 'idle'; account: `0x${string}` | undefined; isLoading: boolean; loadError: null}
+	| {status: 'ready'; account: `0x${string}`; isLoading: false; loadError: null; data: T}
+	| {status: 'error'; account: `0x${string}`; isLoading: false; loadError: Error};
 
 /**
  * Store lifecycle state - for observing load status.
  * Does NOT include data - use get() for current data or watchField/watchItem for reactivity.
  */
 export type StoreLifecycleState =
-	| {status: 'idle'; account: `0x${string}` | undefined; isLoading: false; loadError: Error | null}
+	| {status: 'idle'; account: `0x${string}` | undefined; isLoading: false; loadError: null}
 	| {status: 'loading'; account: `0x${string}`; isLoading: true; loadError: null}
-	| {status: 'ready'; account: `0x${string}`; isLoading: false; loadError: null};
+	| {status: 'ready'; account: `0x${string}`; isLoading: false; loadError: null}
+	| {status: 'error'; account: `0x${string}`; isLoading: false; loadError: Error};
+
+// ============================================================================
+// Unavailability
+// ============================================================================
+
+/**
+ * Why a write handle could not be obtained, or can no longer be used.
+ *
+ * - `load-failed`: the store's load failed (`cause` is the load error).
+ * - `stopped`: the store was stopped (by `stop()`, or by a multi-account store
+ *   losing its last subscriber) before it loaded, or after the handle was given out.
+ * - `account-switched`: (multi-account) the account changed or disconnected
+ *   before the current store loaded.
+ * - `no-account`: (multi-account) there is no current store: no account is
+ *   connected, or the multi-account store has no subscriber.
+ */
+export type StoreUnavailableReason = 'load-failed' | 'stopped' | 'account-switched' | 'no-account';
+
+/**
+ * Raised by `ready()` when it rejects, and by a write handle used after its
+ * store was stopped. Discriminate on `reason`.
+ */
+export class StoreUnavailableError extends Error {
+	readonly reason: StoreUnavailableReason;
+	readonly account: `0x${string}` | undefined;
+
+	constructor(
+		reason: StoreUnavailableReason,
+		message: string,
+		options?: {account?: `0x${string}`; cause?: unknown},
+	) {
+		super(message, options?.cause !== undefined ? {cause: options.cause} : undefined);
+		this.name = 'StoreUnavailableError';
+		this.reason = reason;
+		this.account = options?.account;
+	}
+}
 
 // ============================================================================
 // Change Tracking Types
@@ -531,12 +567,21 @@ export interface SyncableStoreConfig<S extends Schema> {
 // Store Interface
 // ============================================================================
 
-export interface SyncableStore<S extends Schema> {
-	/** Current async state (deeply readonly to prevent direct mutation) */
-	get(): DeepReadonly<AsyncState<DataOf<S>>>;
-
-	/** The account this store is bound to */
+/**
+ * The write handle of a loaded store.
+ *
+ * Only a loaded store hands one out (`store.writer()`, `await store.ready()`),
+ * so a write is impossible to express before the store has loaded. The handle
+ * is the same object for the store's lifetime and is revoked by `stop()`:
+ * every method, and `data`, then throws a `StoreUnavailableError` with
+ * `reason: 'stopped'`.
+ */
+export interface StoreWriter<S extends Schema> {
+	/** The account this handle writes to */
 	readonly account: `0x${string}`;
+
+	/** Current data (deeply readonly). Throws once the handle is revoked. */
+	readonly data: DeepReadonly<DataOf<S>>;
 
 	/**
 	 * Replace a value or record field wholesale.
@@ -609,6 +654,30 @@ export interface SyncableStore<S extends Schema> {
 
 	/** Remove an item from a map field */
 	removeItem<K extends MapKeys<S>>(field: K, key: string, options?: RemovalMutationOptions): void;
+}
+
+export interface SyncableStore<S extends Schema> {
+	/** Current async state (deeply readonly to prevent direct mutation) */
+	get(): DeepReadonly<AsyncState<DataOf<S>>>;
+
+	/** The account this store is bound to */
+	readonly account: `0x${string}`;
+
+	/**
+	 * The write handle if the store is loaded now, `undefined` otherwise
+	 * (not loaded yet, loading, failed, or stopped). For a writer with its own fallback.
+	 */
+	writer(): StoreWriter<S> | undefined;
+
+	/**
+	 * Resolves to the write handle once the store has loaded. Does not start the
+	 * load: call `load()`.
+	 *
+	 * Rejects with a `StoreUnavailableError`:
+	 * - `reason: 'load-failed'` if the load fails (or has failed), the load error as `cause`;
+	 * - `reason: 'stopped'` if the store is stopped before it loads (or already was).
+	 */
+	ready(): Promise<StoreWriter<S>>;
 
 	/** Subscribe to type-safe events */
 	on<E extends keyof StoreEventsWithSync<S>>(
@@ -622,10 +691,13 @@ export interface SyncableStore<S extends Schema> {
 		callback: (data: StoreEventsWithSync<S>[E]) => void,
 	): void;
 
-	/** Load data from storage - must be called to initialize */
+	/** Load data from storage - must be called to initialize. Throws after `stop()`. */
 	load(): Promise<void>;
 
-	/** Stop watching and clean up */
+	/**
+	 * Stop watching and clean up. Terminal: the write handle is revoked, a load
+	 * in flight does not reach `ready`, and pending `ready()` calls reject.
+	 */
 	stop(): void;
 
 	/** Watch a specific map item reactively */
@@ -654,7 +726,7 @@ export interface SyncableStore<S extends Schema> {
 	/** Force sync to server now */
 	syncNow(): Promise<void>;
 
-	/** Retry loading after a migration failure */
+	/** Retry loading after a failed load (status `error`) */
 	retryLoad(): void;
 
 	/** Wait for all pending storage saves to complete */

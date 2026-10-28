@@ -593,7 +593,7 @@ describe('createMultiAccountStore', () => {
 
 			// Store exists but shows error state (store handles errors internally)
 			expect(receivedStore).not.toBeNull();
-			expect(receivedStore!.get().status).toBe('idle');
+			expect(receivedStore!.get().status).toBe('error');
 			expect(receivedStore!.get().loadError).toBeDefined();
 			expect(receivedStore!.get().loadError?.message).toBe('Storage error');
 		});
@@ -1049,7 +1049,7 @@ describe('createMultiAccountStore', () => {
 			// Mutate the current store
 			const store = multiStore.get();
 			expect(store).not.toBeNull();
-			store!.set('settings', {theme: 'light'});
+			store!.writer()!.set('settings', {theme: 'light'});
 
 			await new Promise((r) => setTimeout(r, 50));
 
@@ -1094,7 +1094,9 @@ describe('createMultiAccountStore', () => {
 			// Add an item
 			const store = multiStore.get();
 			expect(store).not.toBeNull();
-			store!.addItem('operations', 'op1', {tx: '0x123', status: 'pending'}, {deleteAt: 0});
+			store!
+				.writer()!
+				.addItem('operations', 'op1', {tx: '0x123', status: 'pending'}, {deleteAt: 0});
 
 			await new Promise((r) => setTimeout(r, 50));
 
@@ -1140,8 +1142,12 @@ describe('createMultiAccountStore', () => {
 			// Add items
 			const store = multiStore.get();
 			expect(store).not.toBeNull();
-			store!.addItem('operations', 'op1', {tx: '0x123', status: 'pending'}, {deleteAt: 0});
-			store!.addItem('operations', 'op2', {tx: '0x456', status: 'complete'}, {deleteAt: 0});
+			store!
+				.writer()!
+				.addItem('operations', 'op1', {tx: '0x123', status: 'pending'}, {deleteAt: 0});
+			store!
+				.writer()!
+				.addItem('operations', 'op2', {tx: '0x456', status: 'complete'}, {deleteAt: 0});
 
 			await new Promise((r) => setTimeout(r, 50));
 
@@ -1260,7 +1266,7 @@ describe('createMultiAccountStore', () => {
 			// Now mutate and verify the re-subscribed readable receives updates
 			const store2 = multiStore.get();
 			expect(store2).not.toBeNull();
-			store2!.set('settings', {theme: 'light'});
+			store2!.writer()!.set('settings', {theme: 'light'});
 
 			await new Promise((r) => setTimeout(r, 50));
 			expect(values2[values2.length - 1]).toEqual({theme: 'light'});
