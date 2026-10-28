@@ -743,7 +743,7 @@ export function createSyncableStore<S extends Schema>(
 			return account;
 		},
 
-		get data() {
+		read() {
 			assertNotRevoked();
 			if (asyncState.status !== 'ready') {
 				throw new Error('Store is not ready');

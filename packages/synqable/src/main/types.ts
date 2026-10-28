@@ -573,15 +573,19 @@ export interface SyncableStoreConfig<S extends Schema> {
  * Only a loaded store hands one out (`store.writer()`, `await store.ready()`),
  * so a write is impossible to express before the store has loaded. The handle
  * is the same object for the store's lifetime and is revoked by `stop()`:
- * every method, and `data`, then throws a `StoreUnavailableError` with
+ * every method, `read()` included, then throws a `StoreUnavailableError` with
  * `reason: 'stopped'`.
  */
 export interface StoreWriter<S extends Schema> {
 	/** The account this handle writes to */
 	readonly account: `0x${string}`;
 
-	/** Current data (deeply readonly). Throws once the handle is revoked. */
-	readonly data: DeepReadonly<DataOf<S>>;
+	/**
+	 * Current data (deeply readonly), for a read-modify-write without narrowing
+	 * `get()` again. Throws once the handle is revoked. A method, not a getter, so
+	 * that inspecting a revoked handle (a debugger, a test matcher) does not throw.
+	 */
+	read(): DeepReadonly<DataOf<S>>;
 
 	/**
 	 * Replace a value or record field wholesale.
