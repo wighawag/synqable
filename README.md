@@ -519,6 +519,15 @@ store.on('$store:storage', (event) => {
 });
 ```
 
+### A listener that throws
+
+A listener's exception never leaves the store half done. The store commits its own state (the data, the save, the sync, its status flags) before it notifies, and every listener runs even when an earlier one throws. Where the error goes depends on what triggered the event:
+
+- A write (`set`, `addItem` and the other mutators) or `load()`: the first listener error is thrown to that caller, after every listener ran, and any further ones are reported (below). The write is still saved and synced; `load()` still finishes, and the store ends in the state the load reached (`ready`, say) before `load()` rejects.
+- Everything with no caller to throw to: the `$store:storage` and `$store:sync` status events (and so `storageStatus$` and `syncStatus$` subscribers), and the data events of a sync merge or of a change from another tab. The store's save or sync carries on, and the error is reported.
+
+Reported means through `reportError` where the runtime has it (browsers, Deno, Bun), the same path as an uncaught error (in Deno and Bun an unhandled one can end the process), and `console.error` otherwise (Node). A multi-account store, which starts each account's load itself, reports a listener error from that load the same way rather than swallowing it.
+
 ## API Reference
 
 ### Store Methods

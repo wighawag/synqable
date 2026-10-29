@@ -30,6 +30,7 @@ import {isWatchable} from '../storage/types.js';
 import {cleanup} from './cleanup.js';
 import {mergeAndCleanup} from './merge.js';
 import {createEmitter} from 'radiate';
+import {reportUncaught} from './reportError.js';
 import {deepMerge} from './helpers.js';
 import {logs} from 'named-logs';
 
@@ -262,8 +263,68 @@ export function createSyncableStore<S extends Schema>(
 	const syncStatus: SyncStatus = mutableSyncStatus;
 	const storageStatus: StorageStatus = mutableStorageStatus;
 
-	// Event emitter
-	const emitter = createEmitter<StoreEventsWithSync<S>>();
+	// Listener errors. A listener that throws must never leave the store's own
+	// state half done (a write in memory but never saved, a save flag stuck on),
+	// so the store always commits its state BEFORE it notifies, and every
+	// listener runs even when an earlier one throws. Where the error goes
+	// depends on who triggered the event:
+	// - an event with a synchronous caller (a mutator's data event, load()'s
+	//   state events) throws the first listener error to that caller, after
+	//   every listener ran (emitToCaller);
+	// - an event with no caller to throw to (storage and sync status events,
+	//   data events from a sync or storage-watch merge) reports it
+	//   (emitIsolated, reportListenerError).
+	// Only the first error can be thrown, so any further ones are reported.
+	type ListenerError = {event: string; error: unknown};
+	let listenerErrorSink: ListenerError[] | null = null;
+
+	function reportListenerError({event, error}: ListenerError): void {
+		logger.error('listener:error', {storageKey, event, error});
+		reportUncaught(`a listener for '${event}' threw`, error);
+	}
+
+	/** Throw the first listener error to the caller; report the rest. */
+	function throwListenerErrors(errors: ListenerError[]): void {
+		if (errors.length === 0) return;
+		for (const extra of errors.slice(1)) {
+			reportListenerError(extra);
+		}
+		throw errors[0].error;
+	}
+
+	const emitter = createEmitter<StoreEventsWithSync<S>>({
+		errorHandler: (event, error) => {
+			if (listenerErrorSink) {
+				listenerErrorSink.push({event: String(event), error});
+			} else {
+				reportListenerError({event: String(event), error});
+			}
+		},
+	});
+
+	/** Emit for a synchronous caller: every listener runs, then the first error is thrown. */
+	function emitToCaller(emit: () => void): void {
+		const outer = listenerErrorSink;
+		const errors: ListenerError[] = [];
+		listenerErrorSink = errors;
+		try {
+			emit();
+		} finally {
+			listenerErrorSink = outer;
+		}
+		throwListenerErrors(errors);
+	}
+
+	/** Emit with no caller to throw to: every listener runs, and errors are reported. */
+	function emitIsolated(emit: () => void): void {
+		const outer = listenerErrorSink;
+		listenerErrorSink = null;
+		try {
+			emit();
+		} finally {
+			listenerErrorSink = outer;
+		}
+	}
 
 	// Event type definitions
 	type SyncEventData =
@@ -285,15 +346,36 @@ export function createSyncableStore<S extends Schema>(
 		| {type: 'ready'}
 		| {type: 'error'; error: Error};
 
+	// Status events are emitted from inside the save and sync machinery, which
+	// has no caller to throw to, so they are always isolated.
 	function emitSyncEvent(event: SyncEventData): void {
-		(emitter.emit as (eventName: '$store:sync', data: SyncEventData) => void)('$store:sync', event);
+		emitIsolated(() =>
+			(emitter.emit as (eventName: '$store:sync', data: SyncEventData) => void)(
+				'$store:sync',
+				event,
+			),
+		);
 	}
 
 	function emitStorageEvent(event: StorageEventData): void {
-		(emitter.emit as (eventName: '$store:storage', data: StorageEventData) => void)(
-			'$store:storage',
-			event,
+		emitIsolated(() =>
+			(emitter.emit as (eventName: '$store:storage', data: StorageEventData) => void)(
+				'$store:storage',
+				event,
+			),
 		);
+	}
+
+	/** Data events from a merge (sync or storage watch): no caller, so isolated. */
+	function emitMergeChanges(changes: {event: string; data: unknown}[]): void {
+		emitIsolated(() => {
+			for (const change of changes) {
+				emitter.emit(
+					change.event as keyof StoreEventsWithSync<S>,
+					change.data as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
+				);
+			}
+		});
 	}
 
 	function emitStateEvent(event: StateEventData): void {
@@ -437,14 +519,9 @@ export function createSyncableStore<S extends Schema>(
 				internalStorage = cleanedMerged;
 				asyncState = {...asyncState, data: cleanedMerged.data};
 
-				for (const change of changes) {
-					emitter.emit(
-						change.event as keyof StoreEventsWithSync<S>,
-						change.data as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
-					);
-				}
-
+				// Save before notifying, so a listener cannot keep the merge off storage.
 				scheduleStorageSave(true);
+				emitMergeChanges(changes);
 			}
 
 			if (serverNeedsUpdate) {
@@ -671,12 +748,7 @@ export function createSyncableStore<S extends Schema>(
 						asyncState = {...asyncState, data: cleanedMerged.data};
 					}
 
-					for (const change of changes) {
-						emitter.emit(
-							change.event as keyof StoreEventsWithSync<S>,
-							change.data as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
-						);
-					}
+					emitMergeChanges(changes);
 				}
 			});
 		}
@@ -745,8 +817,37 @@ export function createSyncableStore<S extends Schema>(
 			throw new Error('Store already loaded or loading');
 		}
 
+		// State events have load()'s caller to throw to, but a listener that
+		// throws must not stop the load half way (stuck loading, with ready()
+		// never settling). So each listener error is kept, the load runs to its
+		// end, and load() then rejects with the first one, the store in the state
+		// the load reached (ready stays ready, as before).
+		const listenerErrors: ListenerError[] = [];
+		const emitState = (event: StateEventData): void => {
+			const outer = listenerErrorSink;
+			listenerErrorSink = listenerErrors;
+			try {
+				emitStateEvent(event);
+			} finally {
+				listenerErrorSink = outer;
+			}
+		};
+		try {
+			await runLoad(emitState);
+		} catch (error) {
+			// The load itself threw: that is the error load() rejects with, so the
+			// listener errors collected so far are reported rather than lost.
+			for (const listenerError of listenerErrors) {
+				reportListenerError(listenerError);
+			}
+			throw error;
+		}
+		throwListenerErrors(listenerErrors);
+	}
+
+	async function runLoad(emitState: (event: StateEventData) => void): Promise<void> {
 		asyncState = {status: 'idle', account, isLoading: true, loadError: null};
-		emitStateEvent({type: 'loading'});
+		emitState({type: 'loading'});
 		logger.debug('load:start', {storageKey});
 
 		try {
@@ -758,7 +859,7 @@ export function createSyncableStore<S extends Schema>(
 			if (stopped) {
 				logger.debug('load:abort:stopped', {storageKey});
 				asyncState = {status: 'idle', account, isLoading: false, loadError: null};
-				emitStateEvent({type: 'idle'});
+				emitState({type: 'idle'});
 				return;
 			}
 			logger.debug('load:storageAdapter.load:result', {
@@ -811,13 +912,13 @@ export function createSyncableStore<S extends Schema>(
 			logger.error('load:error', {storageKey, error});
 			if (stopped) {
 				asyncState = {status: 'idle', account, isLoading: false, loadError: null};
-				emitStateEvent({type: 'idle'});
+				emitState({type: 'idle'});
 				return;
 			}
 			const loadError = error as Error;
 			asyncState = {status: 'error', account, isLoading: false, loadError};
 			settleReadyWaiters({error: loadFailedError(loadError)});
-			emitStateEvent({type: 'error', error: loadError});
+			emitState({type: 'error', error: loadError});
 			return;
 		}
 
@@ -844,7 +945,7 @@ export function createSyncableStore<S extends Schema>(
 			performSync();
 		}
 		logger.info('load:ready', {storageKey, account});
-		emitStateEvent({type: 'ready'});
+		emitState({type: 'ready'});
 	}
 
 	// The write handle. Created once; only handed out while the store is ready.
@@ -879,13 +980,16 @@ export function createSyncableStore<S extends Schema>(
 
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
-			emitter.emit(
-				`${String(field)}:changed` as keyof StoreEventsWithSync<S>,
-				value as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
-			);
-
+			// Commit before notifying: a listener that throws cannot keep the write
+			// off storage or out of sync. Its error still reaches the caller.
 			scheduleStorageSave(options?.immediate);
 			markDirty();
+			emitToCaller(() =>
+				emitter.emit(
+					`${String(field)}:changed` as keyof StoreEventsWithSync<S>,
+					value as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
+				),
+			);
 		},
 
 		update<K extends RecordKeys<S>>(
@@ -908,13 +1012,16 @@ export function createSyncableStore<S extends Schema>(
 
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
-			emitter.emit(
-				`${String(field)}:changed` as keyof StoreEventsWithSync<S>,
-				merged as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
-			);
-
+			// Commit before notifying: a listener that throws cannot keep the write
+			// off storage or out of sync. Its error still reaches the caller.
 			scheduleStorageSave(options?.immediate);
 			markDirty();
+			emitToCaller(() =>
+				emitter.emit(
+					`${String(field)}:changed` as keyof StoreEventsWithSync<S>,
+					merged as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
+				),
+			);
 		},
 
 		addItem<K extends MapKeys<S>>(
@@ -949,13 +1056,16 @@ export function createSyncableStore<S extends Schema>(
 
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
-			emitter.emit(
-				`${String(field)}:added` as keyof StoreEventsWithSync<S>,
-				{key, item: itemWithDeleteAt} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
-			);
-
+			// Commit before notifying: a listener that throws cannot keep the write
+			// off storage or out of sync. Its error still reaches the caller.
 			scheduleStorageSave(options.immediate);
 			markDirty();
+			emitToCaller(() =>
+				emitter.emit(
+					`${String(field)}:added` as keyof StoreEventsWithSync<S>,
+					{key, item: itemWithDeleteAt} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
+				),
+			);
 		},
 
 		setItem<K extends MapKeys<S>>(
@@ -993,13 +1103,16 @@ export function createSyncableStore<S extends Schema>(
 
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
-			emitter.emit(
-				`${String(field)}:updated` as keyof StoreEventsWithSync<S>,
-				{key, item: updatedItem} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
-			);
-
+			// Commit before notifying: a listener that throws cannot keep the write
+			// off storage or out of sync. Its error still reaches the caller.
 			scheduleStorageSave(options?.immediate);
 			markDirty();
+			emitToCaller(() =>
+				emitter.emit(
+					`${String(field)}:updated` as keyof StoreEventsWithSync<S>,
+					{key, item: updatedItem} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
+				),
+			);
 		},
 
 		updateItem<K extends MapKeys<S>>(
@@ -1039,13 +1152,16 @@ export function createSyncableStore<S extends Schema>(
 
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
-			emitter.emit(
-				`${String(field)}:updated` as keyof StoreEventsWithSync<S>,
-				{key, item: updatedItem} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
-			);
-
+			// Commit before notifying: a listener that throws cannot keep the write
+			// off storage or out of sync. Its error still reaches the caller.
 			scheduleStorageSave(options?.immediate);
 			markDirty();
+			emitToCaller(() =>
+				emitter.emit(
+					`${String(field)}:updated` as keyof StoreEventsWithSync<S>,
+					{key, item: updatedItem} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
+				),
+			);
 		},
 
 		patch<K extends WholeFieldKeys<S>>(
@@ -1076,13 +1192,16 @@ export function createSyncableStore<S extends Schema>(
 
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
-			emitter.emit(
-				`${String(field)}:changed` as keyof StoreEventsWithSync<S>,
-				newValue as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
-			);
-
+			// Commit before notifying: a listener that throws cannot keep the write
+			// off storage or out of sync. Its error still reaches the caller.
 			scheduleStorageSave(options?.immediate);
 			markDirty();
+			emitToCaller(() =>
+				emitter.emit(
+					`${String(field)}:changed` as keyof StoreEventsWithSync<S>,
+					newValue as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
+				),
+			);
 		},
 
 		patchItem<K extends MapKeys<S>>(
@@ -1133,13 +1252,16 @@ export function createSyncableStore<S extends Schema>(
 
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
-			emitter.emit(
-				`${String(field)}:updated` as keyof StoreEventsWithSync<S>,
-				{key, item: updatedItem} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
-			);
-
+			// Commit before notifying: a listener that throws cannot keep the write
+			// off storage or out of sync. Its error still reaches the caller.
 			scheduleStorageSave(options?.immediate);
 			markDirty();
+			emitToCaller(() =>
+				emitter.emit(
+					`${String(field)}:updated` as keyof StoreEventsWithSync<S>,
+					{key, item: updatedItem} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
+				),
+			);
 		},
 
 		removeItem<K extends MapKeys<S>>(
@@ -1181,13 +1303,16 @@ export function createSyncableStore<S extends Schema>(
 
 			asyncState = {...asyncState, data: {...internalStorage.data}};
 
-			emitter.emit(
-				`${String(field)}:removed` as keyof StoreEventsWithSync<S>,
-				{key, item: existing} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
-			);
-
+			// Commit before notifying: a listener that throws cannot keep the write
+			// off storage or out of sync. Its error still reaches the caller.
 			scheduleStorageSave(options?.immediate);
 			markDirty();
+			emitToCaller(() =>
+				emitter.emit(
+					`${String(field)}:removed` as keyof StoreEventsWithSync<S>,
+					{key, item: existing} as StoreEventsWithSync<S>[keyof StoreEventsWithSync<S>],
+				),
+			);
 		},
 	};
 

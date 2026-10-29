@@ -30,6 +30,7 @@ import type {
 } from './types.js';
 import {getAddress, getPrivateKey} from './types.js';
 import {StoreUnavailableError} from '../main/types.js';
+import {reportUncaught} from '../main/reportError.js';
 
 // Re-export types
 export type {
@@ -291,10 +292,17 @@ export function createMultiAccountStore<S extends Schema>(
 
 		notify();
 		// Load it, unless a subscriber notified above already replaced or stopped
-		// it (load() rejects on a stopped store). Load errors are not lost by the
-		// catch: they surface through state$ and ready().
+		// it (load() rejects on a stopped store). A load error does not reject
+		// load(): it surfaces through state$ and ready(). What does reject it is a
+		// stopped store (expected here: an account switch or teardown during the
+		// load) or a listener that threw, which nobody else would see, so it is
+		// reported.
 		if (currentStore === store) {
-			store.load().catch(() => {});
+			store.load().catch((error: unknown) => {
+				if (!(error instanceof StoreUnavailableError)) {
+					reportUncaught('loading the account store failed', error);
+				}
+			});
 		}
 	}
 
