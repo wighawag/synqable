@@ -584,7 +584,8 @@ export interface SyncableStoreConfig<S extends Schema> {
  * so a write is impossible to express before the store has loaded. The handle
  * is the same object for the store's lifetime and is revoked by `stop()`:
  * every method, `read()` included, then throws a `StoreUnavailableError` with
- * `reason: 'stopped'`.
+ * `reason: 'stopped'`. The one exception is `persisted()`, which only waits on
+ * writes accepted before `stop()` and still works after it.
  */
 export interface StoreWriter<S extends Schema> {
 	/** The account this handle writes to */
@@ -596,6 +597,14 @@ export interface StoreWriter<S extends Schema> {
 	 * that inspecting a revoked handle (a debugger, a test matcher) does not throw.
 	 */
 	read(): DeepReadonly<DataOf<S>>;
+
+	/**
+	 * Resolves once every write made before the call is on storage. The same as
+	 * `persisted()` on the store this handle belongs to, so it names the store
+	 * written to even after the account switched. Not revoked by `stop()`: a
+	 * write accepted before `stop()` is still saved, and this still waits for it.
+	 */
+	persisted(): Promise<void>;
 
 	/**
 	 * Replace a value or record field wholesale.
@@ -743,6 +752,40 @@ export interface SyncableStore<S extends Schema> {
 	/** Retry loading after a failed load (status `error`) */
 	retryLoad(): void;
 
-	/** Wait for all pending storage saves to complete */
+	/**
+	 * Resolves once every write made before the call is on storage; rejects
+	 * with the storage adapter's error when it is not.
+	 *
+	 * "Before the call" is every mutator call (and every sync merge) the store
+	 * accepted before `persisted()` was called, so calling it synchronously right
+	 * after a write covers exactly that write and what preceded it.
+	 *
+	 * - Resolves at once when a successful save already included those writes,
+	 *   whatever saves for later writes did since.
+	 * - Otherwise it waits for the save that includes them, starting it now if
+	 *   it is held by the debounce, or retrying it when the last save that
+	 *   included them failed and nothing is queued. It does not poll.
+	 * - Rejects with that save's error when it fails and no further save is
+	 *   already queued (a queued save includes the same writes, so it waits for
+	 *   that one instead). It never waits for a recovery that may not come:
+	 *   call it again to retry.
+	 * - After `stop()` it still waits for the save `stop()` runs for a pending
+	 *   write, but never starts a new save (it would race the next store for the
+	 *   account): when the writes are not on storage and nothing is in flight, it
+	 *   rejects with the error of the last failed save.
+	 *
+	 * The rejection is always an `Error`: an adapter that rejects with anything
+	 * else is wrapped, the original value as `cause`.
+	 *
+	 * Unlike `flush()`, which resolves even when the save failed, and unlike
+	 * `storageStatus$`'s `storageError`, which reports the last save of ANY write.
+	 */
+	persisted(): Promise<void>;
+
+	/**
+	 * Save any pending write now and wait for saving to stop. Resolves even when
+	 * the save failed (the failure is in `storageStatus$`); to learn whether
+	 * writes reached storage, use `persisted()`.
+	 */
 	flush(timeoutMs?: number): Promise<void>;
 }

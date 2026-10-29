@@ -159,6 +159,23 @@ The handle is the same object for the store's lifetime, so it can be kept. It al
 
 No write is queued while the store loads. A queued write would make "written" mean "will be written", which is not good enough for data that must be stored before something else happens.
 
+### Knowing a write is on storage
+
+A write returns at once; the save happens after the debounce (or at once with `{ immediate: true }`), and a save can fail. To wait until your writes are actually on storage, await `persisted()`, on the store or on the handle (they are the same):
+
+```typescript
+const writer = await store.ready();
+writer.set('secret', secret, { immediate: true });
+await writer.persisted(); // resolves once the write is on storage, rejects with the storage error otherwise
+sendTransactionThatDependsOnTheSecret();
+```
+
+It covers every write the store accepted before the call, so calling it right after your write covers exactly that write (and what came before it). It resolves on the first successful save that includes them, whatever saves for later writes do, and it does not poll. When the save that included them fails, it rejects with that save's error, unless another save is already queued (that one includes the same writes, so it waits for it). It never waits for a recovery that may not come: call it again to retry, and it starts a new save when nothing is queued. A write held by the debounce is saved at once.
+
+`persisted()` is the one handle method `stop()` does not revoke: a write accepted before `stop()` (an account switch, say) is still saved, and `persisted()` still waits for that save. A stopped store never starts another save, though, since it would race the next store for the account, so if that save fails the rejection is final and the data has to be written again through the new store.
+
+`flush()` is not a substitute: it resolves even when the save failed, and `storageStatus$`'s `storageError` reports the last save of any write, so reading it after `flush()` can blame your write for another's failure, or report an old failure when nothing is pending.
+
 ## Multi-Account Support
 
 For apps that support multiple accounts (e.g., wallet-connected dApps):
@@ -205,6 +222,9 @@ const writer = await multiStore.ready();
 // before its store loads, 'no-account' at once if there is none, 'stopped' if
 // the last subscriber leaves first. A handle held across a switch throws.
 writer.update('settings', { notifications: false });
+// The handle names the account written to, so this waits on that account's
+// save even if the account switches before it lands.
+await writer.persisted();
 
 // Use reactive state directly (works across account switches)
 multiStore.state$.subscribe((state) => {
@@ -516,7 +536,8 @@ store.on('$store:storage', (event) => {
 | `watchItemIds(field)` | Create a reactive store for map item IDs |
 | `syncNow()` | Force immediate sync |
 | `retryLoad()` | Retry loading after a failed load (status `error`) |
-| `flush(timeoutMs?)` | Wait for pending storage saves |
+| `persisted()` | Resolves once every write made before the call is on storage; rejects with the storage error otherwise |
+| `flush(timeoutMs?)` | Save pending writes now and wait for saving to stop; resolves even when the save failed (use `persisted()` to know) |
 | `stop()` | Cleanup and stop all listeners; revokes the write handle |
 
 ### Write Handle (`StoreWriter`) Methods
@@ -525,6 +546,7 @@ store.on('$store:storage', (event) => {
 |--------|-------------|
 | `account` | The account this handle writes to |
 | `read()` | Current data (deeply readonly) |
+| `persisted()` | Same as the store's `persisted()`; still works after `stop()` |
 | `set(field, value)` | Replace a value or record field (on a record, stamps every property) |
 | `update(field, partial)` | Update a **record** field with partial updates (stamps only the supplied properties) |
 | `patch(field, fn)` | Patch a value or record field with a function (on a record, stamps only what changed) |
@@ -534,7 +556,7 @@ store.on('$store:storage', (event) => {
 | `patchItem(field, key, fn)` | Patch a map item with a function (preserves `deleteAt`) |
 | `removeItem(field, key)` | Remove an item from a map field |
 
-Every method (`read()` included, `account` excepted) throws a `StoreUnavailableError` with `reason: 'stopped'` once the store is stopped.
+Every method (`read()` included, `account` and `persisted()` excepted) throws a `StoreUnavailableError` with `reason: 'stopped'` once the store is stopped.
 
 ### Store Properties
 

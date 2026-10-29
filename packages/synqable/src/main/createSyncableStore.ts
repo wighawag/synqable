@@ -134,6 +134,85 @@ export function createSyncableStore<S extends Schema>(
 	let storageSavePending = false;
 	let isStorageSaving = false;
 
+	// Durability bookkeeping for persisted(). Every write bumps writeSeq; a save
+	// records the writeSeq it started at, and a save always writes the whole
+	// current state, so a save that started at or after a write includes it.
+	// savedSeq is the highest such start of a SUCCESSFUL save: every write up to
+	// it is on storage, whatever later saves did. A write made while a save is in
+	// flight is not counted as included in it (the adapter may already have
+	// serialized the state); it sets storageSavePending, so another save follows.
+	let writeSeq = 0;
+	let savedSeq = 0;
+	// The error of the most recent failed save, for a stopped store that will not retry.
+	let lastSaveError: Error | null = null;
+	const persistedWaiters: {
+		target: number;
+		resolve: () => void;
+		reject: (error: Error) => void;
+	}[] = [];
+
+	/** Settle the waiters whose writes the save that started at `savedThrough` included. */
+	function settlePersistedWaiters(
+		savedThrough: number,
+		outcome: {saved: true} | {saved: false; error: Error},
+	): void {
+		for (let i = persistedWaiters.length - 1; i >= 0; i--) {
+			const waiter = persistedWaiters[i];
+			if (waiter.target <= savedThrough) {
+				persistedWaiters.splice(i, 1);
+				if (outcome.saved) {
+					waiter.resolve();
+				} else {
+					waiter.reject(outcome.error);
+				}
+			}
+		}
+	}
+
+	/** An adapter may reject with anything; persisted() always rejects with an Error. */
+	function toSaveError(error: unknown): Error {
+		return error instanceof Error
+			? error
+			: new Error(`Storage save failed for ${account}: ${String(error)}`, {cause: error});
+	}
+
+	/**
+	 * Resolves once every write made before the call is on storage; rejects with
+	 * the storage error when the save that included them failed and no further
+	 * save is queued. See `SyncableStore.persisted` for the contract.
+	 */
+	function persisted(): Promise<void> {
+		const target = writeSeq;
+		if (savedSeq >= target) {
+			return Promise.resolve();
+		}
+		return new Promise<void>((resolve, reject) => {
+			if (isStorageSaving || storageSavePending) {
+				// A save that will include these writes is in flight or queued.
+				persistedWaiters.push({target, resolve, reject});
+				if (!isStorageSaving && !stopped) {
+					// Queued behind the debounce: save now, as flush() does.
+					if (storageDebounceTimer) {
+						clearTimeout(storageDebounceTimer);
+						storageDebounceTimer = undefined;
+					}
+					void performStorageSave();
+				}
+				return;
+			}
+			// Nothing in flight or queued, so the last save that included these
+			// writes failed. A stopped store does not save again: its save would
+			// race the fresh store for the same account.
+			if (stopped) {
+				reject(lastSaveError ?? stoppedError());
+				return;
+			}
+			persistedWaiters.push({target, resolve, reject});
+			storageSavePending = true;
+			void performStorageSave();
+		});
+	}
+
 	// Sync state - boolean flag for queue protection
 	let syncPending = false;
 
@@ -469,6 +548,7 @@ export function createSyncableStore<S extends Schema>(
 
 	function scheduleStorageSave(immediate = false): void {
 		logger.debug('scheduleStorageSave', {immediate, storageKey, account});
+		writeSeq++;
 		storageSavePending = true;
 
 		if (immediate) {
@@ -517,8 +597,10 @@ export function createSyncableStore<S extends Schema>(
 
 		isStorageSaving = true;
 		storageSavePending = false;
+		const savedThrough = writeSeq;
 		mutableStorageStatus.isSaving = true;
 		emitStorageEvent({type: 'saving'});
+		let saveError: Error | undefined;
 		logger.debug('performStorageSave:start', {storageKey, hasInternalStorage: !!internalStorage});
 
 		try {
@@ -528,6 +610,10 @@ export function createSyncableStore<S extends Schema>(
 				await storageAdapter.save(storageKey, internalStorage);
 				mutableStorageStatus.lastSavedAt = clock();
 				mutableStorageStatus.storageError = null;
+				if (savedThrough > savedSeq) {
+					savedSeq = savedThrough;
+				}
+				settlePersistedWaiters(savedThrough, {saved: true});
 				logger.debug('performStorageSave:success', {
 					storageKey,
 					lastSavedAt: mutableStorageStatus.lastSavedAt,
@@ -538,6 +624,8 @@ export function createSyncableStore<S extends Schema>(
 		} catch (error) {
 			logger.error('performStorageSave:error', {storageKey, error});
 			mutableStorageStatus.storageError = error as Error;
+			saveError = toSaveError(error);
+			lastSaveError = saveError;
 			emitStorageEvent({type: 'failed', error: error as Error});
 		} finally {
 			isStorageSaving = false;
@@ -547,6 +635,13 @@ export function createSyncableStore<S extends Schema>(
 				logger.debug('performStorageSave:requeue', {storageKey});
 				await performStorageSave();
 			} else {
+				// A failure settles its waiters only here, after the `failed` listeners
+				// ran: a write made by one of them queues a save that includes the
+				// same writes (handled above, so they wait for it), and a persisted()
+				// called from one of them is registered by now and is settled too.
+				if (saveError) {
+					settlePersistedWaiters(savedThrough, {saved: false, error: saveError});
+				}
 				mutableStorageStatus.isSaving = false;
 				logger.debug('performStorageSave:complete', {storageKey});
 				emitStorageEvent({
@@ -765,6 +860,9 @@ export function createSyncableStore<S extends Schema>(
 			}
 			return asyncState.data as DeepReadonly<DataOf<S>>;
 		},
+
+		// Not revoked by stop(): it only waits on writes accepted before it.
+		persisted,
 
 		set<K extends WholeFieldKeys<S>>(
 			field: K,
@@ -1373,6 +1471,8 @@ export function createSyncableStore<S extends Schema>(
 			asyncState = {status: 'idle', account, isLoading: false, loadError: null};
 			load();
 		},
+
+		persisted,
 
 		async flush(timeoutMs = 30000): Promise<void> {
 			const startTime = clock();
